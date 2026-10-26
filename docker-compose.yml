@@ -1,0 +1,22 @@
+services:
+  sortarr:
+    build: .
+    image: ghcr.io/lightmaster00/sortarr:latest
+    container_name: sortarr
+    restart: unless-stopped
+    init: false # tini est déjà le PID 1 de l'image
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "3000:3000"
+    volumes:
+      # Base SQLite, secret de chiffrement, media.env facultatif
+      - ./config:/config
+      # La racine médias du NAS, celle qui contient vos dossiers de films et de séries
+      - /mnt/user/media:/media
+    environment:
+      - PUID=99
+      - PGID=100
+      - TZ=Europe/Paris
+      # Derrière un reverse proxy en HTTPS :
+      # - COOKIE_SECURE=true

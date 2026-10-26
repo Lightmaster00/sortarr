@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>sortarr</Name>
+  <Repository>ghcr.io/lightmaster00/sortarr:latest</Repository>
+  <Support>https://github.com/Lightmaster00/sortarr/issues</Support>
+  <Project>https://github.com/Lightmaster00/sortarr</Project>
+  <TemplateURL>https://raw.githubusercontent.com/Lightmaster00/sortarr/main/unraid/sortarr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Lightmaster00/sortarr/main/public/icon.png</Icon>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <ExtraParams>--security-opt no-new-privileges:true</ExtraParams>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <Overview>Administration de la médiathèque : catalogue unifié Radarr / Sonarr / Plex / Jellyfin, audit, règles et migrations.</Overview>
+  <Category>MediaServer:Other Tools:</Category>
+  <Config Name="Interface web" Target="3000" Default="3000" Mode="tcp" Description="Port de l'interface" Type="Port" Display="always" Required="true">3000</Config>
+  <Config Name="Configuration" Target="/config" Default="/mnt/user/appdata/sortarr" Mode="rw" Description="Base de données, secret de chiffrement, media.env" Type="Path" Display="always" Required="true">/mnt/user/appdata/sortarr</Config>
+  <Config Name="Médias" Target="/media" Default="/mnt/user/media" Mode="rw" Description="Racine des médias (contient vos dossiers de films et de séries)" Type="Path" Display="always" Required="true">/mnt/user/media</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Type="Variable" Display="advanced" Required="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Type="Variable" Display="advanced" Required="false">100</Config>
+  <Config Name="Fuseau horaire" Target="TZ" Default="Europe/Paris" Type="Variable" Display="advanced" Required="false">Europe/Paris</Config>
+  <Config Name="Cookie sécurisé" Target="COOKIE_SECURE" Default="false" Description="true si l'accès passe par un reverse proxy HTTPS" Type="Variable" Display="advanced" Required="false">false</Config>
+</Container>
