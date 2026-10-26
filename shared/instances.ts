@@ -88,8 +88,3 @@ export interface Discovery {
 }
 
 export type TestResult = { ok: true; discovery: Discovery } | { ok: false; error: string }
-
-export interface ImportPreview {
-  available: boolean
-  proposals: { name: string; kind: InstanceKind; url: string; exists: boolean }[]
-}

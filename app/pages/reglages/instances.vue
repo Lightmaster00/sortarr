@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { KIND_LABELS, statusDot, statusLabel, type ImportPreview, type InstanceDto, type TestResult } from '#shared/instances'
+import { KIND_LABELS, statusDot, statusLabel, type InstanceDto, type TestResult } from '#shared/instances'
 import { formatDateTime } from '#shared/format'
 
 const UBadge = resolveComponent('UBadge')
@@ -81,39 +81,7 @@ async function confirmDelete() {
   }
 }
 
-// Import de media.env
-const importPreview = ref<ImportPreview | null>(null)
-const importOpen = ref(false)
-const importSelected = ref<string[]>([])
-const importable = computed(() => importPreview.value?.proposals.filter(p => !p.exists) ?? [])
-async function loadImport() {
-  try {
-    importPreview.value = await api<ImportPreview>('/api/instances/import')
-    importSelected.value = importable.value.map(p => p.name)
-  } catch (e) {
-    console.warn('Import media.env indisponible', e)
-    importPreview.value = null
-  }
-}
-function toggleImport(name: string, checked: boolean) {
-  importSelected.value = checked ? [...importSelected.value, name] : importSelected.value.filter(n => n !== name)
-}
-const importing = ref(false)
-async function runImport() {
-  importing.value = true
-  try {
-    const created = await api<InstanceDto[]>('/api/instances/import', { method: 'POST', body: { names: importSelected.value } })
-    importOpen.value = false
-    toast.add({ title: `${created.length} instance(s) importée(s)`, description: 'Teste-les puis configure leurs chemins.', color: 'success' })
-    await Promise.all([refresh(), loadImport()])
-  } catch (e) {
-    toast.add({ title: 'Import impossible', description: errorMessage(e), color: 'error' })
-  } finally {
-    importing.value = false
-  }
-}
-
-onMounted(() => Promise.all([refresh(), loadImport()]))
+onMounted(refresh)
 onSyncFinished(refresh)
 
 const columns: TableColumn<InstanceDto>[] = [
@@ -163,16 +131,6 @@ const columns: TableColumn<InstanceDto>[] = [
 <template>
   <AppPage title="Instances">
     <div class="space-y-4">
-      <UAlert
-        v-if="importable.length"
-        color="info"
-        variant="subtle"
-        icon="i-lucide-file-down"
-        title="Fichier media.env trouvé"
-        :description="`${importable.length} instance(s) peuvent être importées depuis le dossier de configuration.`"
-        :actions="[{ label: 'Importer', onClick: () => { importOpen = true } }]"
-      />
-
       <div class="flex justify-between items-center">
         <p class="text-sm text-muted">Radarr, Sonarr, Plex et Jellyfin : ajoute autant d'instances que nécessaire.</p>
         <UButton icon="i-lucide-plus" label="Ajouter une instance" @click="openForm(null)" />
@@ -206,24 +164,5 @@ const columns: TableColumn<InstanceDto>[] = [
       </template>
     </UModal>
 
-    <UModal v-model:open="importOpen" title="Importer depuis media.env">
-      <template #body>
-        <div class="space-y-2">
-          <UCheckbox
-            v-for="p in importable"
-            :key="p.name"
-            :model-value="importSelected.includes(p.name)"
-            :label="`${p.name} (${KIND_LABELS[p.kind]}) — ${p.url}`"
-            @update:model-value="(v: boolean | 'indeterminate') => toggleImport(p.name, v === true)"
-          />
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2 w-full">
-          <UButton label="Annuler" color="neutral" variant="ghost" @click="importOpen = false" />
-          <UButton label="Importer" :loading="importing" :disabled="importing || !importSelected.length" @click="runImport" />
-        </div>
-      </template>
-    </UModal>
   </AppPage>
 </template>

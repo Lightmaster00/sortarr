@@ -10,7 +10,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Base SQLite, secret de chiffrement, media.env facultatif
+      # Base SQLite, secret de chiffrement
       - ./config:/config
       # La racine médias du NAS, celle qui contient vos dossiers de films et de séries
       - /mnt/user/media:/media

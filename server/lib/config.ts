@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-/** Dossier des données de Sortarr (base, secret, media.env). /config dans Docker. */
+/** Dossier des données de Sortarr (base SQLite, secret de chiffrement). /config dans Docker. */
 export function configDir(): string {
   const value = process.env.SORTARR_CONFIG_DIR?.trim()
   return value ? path.resolve(value) : path.resolve(process.cwd(), 'config')

@@ -26,7 +26,7 @@ docker compose up -d
 Puis ouvrir http://<ip-du-serveur>:3000 :
 
 1. créer le compte admin ;
-2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (ou importer `media.env`, voir plus bas), puis « Tester la connexion ». Modifier l'URL d'une instance impose de ressaisir sa clé API ;
+2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (bouton « Ajouter une instance » : nom, URL et clé API), puis « Tester la connexion ». Modifier l'URL d'une instance impose de ressaisir sa clé API ;
 3. **Réglages › Chemins** : pour chaque instance, « Suggérer », corriger, « Enregistrer », « Vérifier » ;
 4. cliquer sur « Synchroniser » puis ouvrir le **Catalogue**.
 
@@ -34,17 +34,12 @@ Puis ouvrir http://<ip-du-serveur>:3000 :
 
 | Conteneur | Rôle |
 |---|---|
-| `/config` | base SQLite, fichier `secret` (clé de chiffrement des clés API), `media.env` facultatif |
+| `/config` | base SQLite, fichier `secret` (clé de chiffrement des clés API) |
 | `/media` | racine de vos médias, celle qui contient vos dossiers de films et de séries (`movies/`, `series/`…) |
 
 Gardez une sauvegarde de `/config/secret` : sans lui, les clés API enregistrées sont illisibles et doivent être ressaisies.
 
 Si `/media` est absent ou illisible, la dernière synchronisation affiche une erreur « Disque ». Les données déjà synchronisées sont conservées.
-
-### Importer media.env
-
-Copier le fichier dans `/config/media.env`. Format : `<NOM>_URL` et `<NOM>_KEY` (ou `<NOM>_TOKEN` pour Plex), par exemple
-`RADARR_4K_URL=http://192.168.1.11:7878` et `RADARR_4K_KEY=…`. Le type est deviné à partir du nom.
 
 ### Variables
 

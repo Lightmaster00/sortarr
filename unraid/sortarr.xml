@@ -14,7 +14,7 @@
   <Overview>Administration de la médiathèque : catalogue unifié Radarr / Sonarr / Plex / Jellyfin, audit, règles et migrations.</Overview>
   <Category>MediaServer:Other Tools:</Category>
   <Config Name="Interface web" Target="3000" Default="3000" Mode="tcp" Description="Port de l'interface" Type="Port" Display="always" Required="true">3000</Config>
-  <Config Name="Configuration" Target="/config" Default="/mnt/user/appdata/sortarr" Mode="rw" Description="Base de données, secret de chiffrement, media.env" Type="Path" Display="always" Required="true">/mnt/user/appdata/sortarr</Config>
+  <Config Name="Configuration" Target="/config" Default="/mnt/user/appdata/sortarr" Mode="rw" Description="Base de données, secret de chiffrement" Type="Path" Display="always" Required="true">/mnt/user/appdata/sortarr</Config>
   <Config Name="Médias" Target="/media" Default="/mnt/user/media" Mode="rw" Description="Racine des médias (contient vos dossiers de films et de séries)" Type="Path" Display="always" Required="true">/mnt/user/media</Config>
   <Config Name="PUID" Target="PUID" Default="99" Type="Variable" Display="advanced" Required="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Type="Variable" Display="advanced" Required="false">100</Config>

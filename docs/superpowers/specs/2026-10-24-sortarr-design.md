@@ -54,7 +54,7 @@ Volumes :
 - `/config` : base SQLite, réglages, clés API.
 - `/media` : racine médias du NAS, en lecture-écriture.
 
-Premier lancement : assistant de création du compte admin, puis ajout des instances. Si `/config/media.env` existe, l'assistant propose de l'importer (format : `<NOM>_URL` / `<NOM>_KEY` ou `_TOKEN`, type deviné à partir du nom et confirmé par l'utilisateur).
+Premier lancement : assistant de création du compte admin, puis ajout des instances. Les instances se configurent uniquement depuis l'interface (aucun fichier de configuration à déposer).
 
 ## 4. Architecture
 
