@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { HttpError, httpJson } from '../../server/lib/http'
+import { HttpError, httpJson, networkHint } from '../../server/lib/http'
 import { mapLimit } from '../../server/lib/concurrency'
 import { toHttpError } from '../../server/lib/api'
 import { mockFetch } from '../helpers/fetch'
@@ -91,5 +91,16 @@ describe('toHttpError', () => {
     const error = toHttpError(new HttpError('x', 503, 'http://svc/')) as { statusCode: number; message: string }
     expect(error.statusCode).toBe(502)
     expect(error.message).toBe('x')
+  })
+})
+
+describe('networkHint', () => {
+  const fail = (code: string) => Object.assign(new TypeError('fetch failed'), { cause: { code } })
+  it('explique les pannes courantes', () => {
+    expect(networkHint(fail('ECONNREFUSED'), 'http://localhost:32400')).toContain('localhost')
+    expect(networkHint(fail('ERR_TLS_CERT_ALTNAME_INVALID'), 'https://192.168.1.10:32400')).toContain('http://')
+    expect(networkHint(fail('EHOSTUNREACH'), 'http://192.168.1.10:32400')).toContain('Host access to custom networks')
+    expect(networkHint(fail('ECONNREFUSED'), 'http://192.168.1.10:32400')).toContain('port')
+    expect(networkHint(fail('EOTHER'), 'http://192.168.1.10:32400')).toBe('')
   })
 })

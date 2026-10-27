@@ -29,6 +29,31 @@ function displayUrl(url: string): string {
   }
 }
 
+/** Explication en clair des pannes réseau les plus courantes (Docker, Unraid, HTTPS). */
+export function networkHint(error: unknown, url: string): string {
+  const e = error as { name?: string; cause?: { code?: string } }
+  const code = e?.cause?.code ?? ''
+  let host = ''
+  try { host = new URL(url).hostname } catch { /* adresse illisible */ }
+  if (/^(localhost|127\.|::1|\[::1\])/.test(host)) {
+    return 'Dans Docker, « localhost » désigne Sortarr lui-même : mets l\'adresse IP du serveur (ex. http://192.168.1.10:32400).'
+  }
+  if (/CERT|TLS|SSL|SELF_SIGNED|UNABLE_TO_VERIFY|ALTNAME/i.test(code)) {
+    return 'Certificat HTTPS refusé : utilise plutôt http:// avec l\'adresse IP et le port (ex. http://192.168.1.10:32400).'
+  }
+  if (code === 'ECONNREFUSED') return 'Rien n\'écoute à cette adresse : vérifie l\'IP et le port, et que le service est démarré.'
+  if (code === 'EHOSTUNREACH' || code === 'ENETUNREACH' || code === 'ETIMEDOUT' || e?.name === 'TimeoutError') {
+    return 'Machine inaccessible depuis Sortarr. Sur Unraid, si Sortarr ou ce service a sa propre IP (réseau br0), active « Host access to custom networks » dans Réglages › Docker, ou mets les deux conteneurs sur le réseau bridge.'
+  }
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'Nom de machine inconnu : utilise plutôt l\'adresse IP.'
+  return ''
+}
+
+function unreachable(error: unknown, timeoutMs: number, url: string, shown: string): HttpError {
+  const hint = networkHint(error, url)
+  return new HttpError(`Service injoignable (${networkReason(error, timeoutMs)}) : ${shown}${hint ? ` — ${hint}` : ''}`, null, shown)
+}
+
 function networkReason(error: unknown, timeoutMs: number): string {
   const e = error as { name?: string; message?: string; cause?: { code?: string } }
   if (e?.name === 'TimeoutError') return `délai de ${timeoutMs / 1000} s dépassé`
@@ -57,7 +82,7 @@ export async function httpJson<T>(url: string, opts: HttpOptions = {}): Promise<
         signal: AbortSignal.timeout(timeoutMs),
       })
     } catch (error) {
-      lastError = new HttpError(`Service injoignable (${networkReason(error, timeoutMs)}) : ${shown}`, null, shown)
+      lastError = unreachable(error, timeoutMs, url, shown)
       if (canRetry) { await sleep(delay * 2 ** (attempt - 1)); continue }
       throw lastError
     }
@@ -67,7 +92,7 @@ export async function httpJson<T>(url: string, opts: HttpOptions = {}): Promise<
       try {
         text = res.status === 204 ? '' : await res.text()
       } catch (error) {
-        lastError = new HttpError(`Service injoignable (${networkReason(error, timeoutMs)}) : ${shown}`, null, shown)
+        lastError = unreachable(error, timeoutMs, url, shown)
         if (canRetry) { await sleep(delay * 2 ** (attempt - 1)); continue }
         throw lastError
       }
@@ -99,7 +124,7 @@ export async function httpImage(url: string, opts: { headers?: Record<string, st
   try {
     res = await fetch(url, { headers: { Accept: 'image/*', ...opts.headers }, signal: AbortSignal.timeout(timeoutMs) })
   } catch (error) {
-    throw new HttpError(`Service injoignable (${networkReason(error, timeoutMs)}) : ${shown}`, null, shown)
+    throw unreachable(error, timeoutMs, url, shown)
   }
   if (!res.ok) throw new HttpError(`HTTP ${res.status} sur ${shown}`, res.status, shown)
   const type = (res.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase()
