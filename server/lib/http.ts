@@ -89,3 +89,24 @@ export async function httpJson<T>(url: string, opts: HttpOptions = {}): Promise<
   }
   throw lastError ?? new HttpError(`Échec de la requête : ${shown}`, null, shown)
 }
+
+/** Télécharge une image (affiche) : une seule tentative, taille plafonnée, type vérifié. */
+export async function httpImage(url: string, opts: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number } = {}): Promise<{ type: string; data: Buffer }> {
+  const shown = displayUrl(url)
+  const timeoutMs = opts.timeoutMs ?? 10_000
+  const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024
+  let res: Response
+  try {
+    res = await fetch(url, { headers: { Accept: 'image/*', ...opts.headers }, signal: AbortSignal.timeout(timeoutMs) })
+  } catch (error) {
+    throw new HttpError(`Service injoignable (${networkReason(error, timeoutMs)}) : ${shown}`, null, shown)
+  }
+  if (!res.ok) throw new HttpError(`HTTP ${res.status} sur ${shown}`, res.status, shown)
+  const type = (res.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase()
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(type)) throw new HttpError(`Réponse qui n'est pas une image : ${shown}`, res.status, shown)
+  const length = Number(res.headers.get('content-length') ?? 0)
+  if (length > maxBytes) throw new HttpError(`Image trop lourde : ${shown}`, res.status, shown)
+  const data = Buffer.from(await res.arrayBuffer())
+  if (data.length > maxBytes) throw new HttpError(`Image trop lourde : ${shown}`, res.status, shown)
+  return { type, data }
+}

@@ -63,4 +63,6 @@ export interface SyncDeps {
   fetchArr(instance: InstanceSecret): Promise<{ version: string; records: ArrItemRecord[] }>
   fetchServer(instance: InstanceSecret): Promise<{ version: string; items: ServerItemRecord[]; history: HistoryRecord[] }>
   listTopDirs(realPath: string): string[]
+  /** Détecte les chemins d'une instance qui n'en a aucun (facultatif : absent dans les tests). */
+  configurePaths?(instanceId: number): Promise<unknown>
 }

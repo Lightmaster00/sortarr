@@ -130,3 +130,18 @@ describe('startSync', () => {
     expect(d.fetchArr).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('détection automatique des chemins', () => {
+  it('ne la lance que pour les instances sans correspondance, avant leur synchro', async () => {
+    setup()
+    const configurePaths = vi.fn(async () => undefined)
+    await runSync(deps({ configurePaths }))
+    expect(configurePaths.mock.calls.map(c => c[0]).sort()).toEqual([1, 2])
+  })
+
+  it('un échec de détection n\'empêche pas la synchro', async () => {
+    setup()
+    const state = await runSync(deps({ configurePaths: vi.fn(async () => { throw new Error('injoignable') }) }))
+    expect(state.results.every(r => r.ok)).toBe(true)
+  })
+})

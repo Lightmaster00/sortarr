@@ -33,11 +33,21 @@ export interface ItemDetail {
   history: { serverName: string; user: string; lastWatchedAt: number | null; playCount: number }[]
 }
 
+export type QualityBucket = '2160' | '1080' | '720' | 'sd' | 'unknown'
+
 export interface DashboardDto {
   movies: number
   series: number
   totalSizeGb: number
   neverWatched: number
+  /** Espace et nombre de titres par instance Radarr/Sonarr. */
+  spaceByInstance: { id: number; name: string; kind: InstanceKind; sizeGb: number; titles: number }[]
+  /** Titres par résolution (la plus basse de leurs fichiers). */
+  quality: { bucket: QualityBucket; count: number }[]
+  /** Langues originales les plus présentes ; le reste est regroupé sous « other ». */
+  languages: { code: string; count: number }[]
+  /** Derniers titres ajoutés, pour la frise d'affiches. */
+  recent: { id: number; title: string; year: number | null; type: 'movie' | 'series' }[]
   instances: InstanceDto[]
   sync: SyncStateDto
 }

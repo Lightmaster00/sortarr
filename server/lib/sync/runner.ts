@@ -57,6 +57,10 @@ async function syncOne(instance: InstanceDto, deps: SyncDeps, db: Db, clock: () 
   try {
     const secret = getInstanceSecret(instance.id, db)
     if (!secret) throw new Error('Instance introuvable.')
+    if (deps.configurePaths && !listMappings(instance.id, db).length) {
+      // Instance ajoutée avant la détection automatique, ou dossiers absents à l'ajout : on retente.
+      try { await deps.configurePaths(instance.id) } catch { /* la synchro signalera les titres sans correspondance */ }
+    }
     const mappings = listMappings(instance.id, db)
     let counts: StoreCounts
     let version: string

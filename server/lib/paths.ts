@@ -152,3 +152,27 @@ export async function verifyInstancePaths(instanceId: number, deps: VerifyDeps =
   })
   return { ok: checks.length > 0 && checks.every(c => c.exists), checks }
 }
+
+/**
+ * Sans correspondance enregistrée, détecte et enregistre celles qu'on peut trouver seul
+ * (dossiers racines ou bibliothèques retrouvés sous /media). Ne touche jamais à un réglage existant.
+ */
+export async function autoConfigurePaths(
+  instanceId: number,
+  opts: { roots?: () => Promise<string[]>; root?: string; db?: Db } = {},
+): Promise<{ found: number; missing: number }> {
+  const db = opts.db ?? getDb()
+  if (listMappings(instanceId, db).length) return { found: 0, missing: 0 }
+  const roots = opts.roots ?? (async () => {
+    const secret = getInstanceSecret(instanceId, db)
+    return secret ? (await discover(secret)).roots.map(r => r.path) : []
+  })
+  const unique = [...new Set((await roots()).map(normalizeDir))]
+  const found = unique.flatMap((servicePath) => {
+    const realPath = suggestRealPath(servicePath, opts.root)
+    return realPath ? [{ servicePath, realPath, managed: true }] : []
+  })
+  // Relu juste avant d'écrire : un réglage manuel fait entre-temps l'emporte.
+  if (found.length && !listMappings(instanceId, db).length) replaceMappings(instanceId, found, db)
+  return { found: found.length, missing: unique.length - found.length }
+}

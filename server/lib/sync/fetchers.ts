@@ -4,6 +4,7 @@ import { arrStatus, arrTags, mapRadarrMovie, mapSonarrSeries, radarrMovies, sona
 import { aggregateJellyfinPlayed, jellyfinInfo, jellyfinLibraries, jellyfinLibraryItems, jellyfinPlayed, jellyfinUsers, mapJellyfinItem } from '../../connectors/jellyfin'
 import { aggregatePlexHistory, mapPlexItem, plexAccounts, plexHistory, plexIdentity, plexMetadata, plexSectionItems, plexSections } from '../../connectors/plex'
 import { mapLimit } from '../concurrency'
+import { autoConfigurePaths } from '../paths'
 import type { InstanceSecret } from '../instances'
 import type { ServerItemRecord, SyncDeps } from './types'
 
@@ -61,4 +62,4 @@ export function listTopDirs(dir: string): string[] {
     .map(d => path.posix.join(dir, d.name))
 }
 
-export const defaultSyncDeps: SyncDeps = { fetchArr, fetchServer, listTopDirs }
+export const defaultSyncDeps: SyncDeps = { fetchArr, fetchServer, listTopDirs, configurePaths: id => autoConfigurePaths(id) }

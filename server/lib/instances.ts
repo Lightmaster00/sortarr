@@ -6,7 +6,7 @@ import { decrypt, encrypt } from './secrets'
 interface Row {
   id: number; kind: InstanceKind; name: string; url: string; api_key_enc: string; enabled: number
   version: string | null; last_status: InstanceStatus; last_status_at: number | null; last_error: string | null; last_sync_at: number | null
-  last_sync_ok: number | null
+  last_sync_ok: number | null; path_count: number
 }
 
 export interface InstanceSecret { id: number; kind: InstanceKind; name: string; url: string; apiKey: string }
@@ -15,12 +15,14 @@ function toDto(r: Row): InstanceDto {
   return {
     id: r.id, kind: r.kind, name: r.name, url: r.url, enabled: r.enabled === 1, hasKey: r.api_key_enc.length > 0,
     version: r.version, lastStatus: r.last_status, lastStatusAt: r.last_status_at, lastError: r.last_error, lastSyncAt: r.last_sync_at,
-    stale: r.last_sync_at !== null && r.last_sync_ok === 0,
+    stale: r.last_sync_at !== null && r.last_sync_ok === 0, pathCount: r.path_count,
   }
 }
 
+const SELECT = 'SELECT i.*, (SELECT COUNT(*) FROM path_mappings m WHERE m.instance_id = i.id) AS path_count FROM instances i'
+
 function row(id: number, db: Db): Row | undefined {
-  return db.prepare('SELECT * FROM instances WHERE id = ?').get(id) as Row | undefined
+  return db.prepare(`${SELECT} WHERE i.id = ?`).get(id) as Row | undefined
 }
 
 function assertNameFree(db: Db, name: string, exceptId?: number): void {
@@ -29,8 +31,8 @@ function assertNameFree(db: Db, name: string, exceptId?: number): void {
 }
 
 export function listInstances(db: Db = getDb()): InstanceDto[] {
-  const order = "CASE kind WHEN 'radarr' THEN 1 WHEN 'sonarr' THEN 2 WHEN 'plex' THEN 3 ELSE 4 END"
-  return (db.prepare(`SELECT * FROM instances ORDER BY ${order}, name COLLATE NOCASE`).all() as Row[]).map(toDto)
+  const order = "CASE i.kind WHEN 'radarr' THEN 1 WHEN 'sonarr' THEN 2 WHEN 'plex' THEN 3 ELSE 4 END"
+  return (db.prepare(`${SELECT} ORDER BY ${order}, i.name COLLATE NOCASE`).all() as Row[]).map(toDto)
 }
 
 export function getInstance(id: number, db: Db = getDb()): InstanceDto | null {

@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { isUnder, listMappings, normalizeDir, replaceMappings, suggestRealPath, toRealWith, toServiceWith, tryReal, verifyInstancePaths } from '../../server/lib/paths'
-import { createInstance } from '../../server/lib/instances'
+import { autoConfigurePaths, isUnder, listMappings, normalizeDir, replaceMappings, suggestRealPath, toRealWith, toServiceWith, tryReal, verifyInstancePaths } from '../../server/lib/paths'
+import { createInstance, getInstance } from '../../server/lib/instances'
 import { mediaRoot } from '../../server/lib/config'
 import { useTestDb } from '../helpers/db'
 
@@ -98,5 +98,28 @@ describe('verifyInstancePaths', () => {
       ['/movies/Dune (2021)', true, 'OK'],
       ['/movies/Absent (1999)', false, `Dossier introuvable : ${root}/movies/Absent (1999)`],
     ])
+  })
+})
+
+describe('autoConfigurePaths', () => {
+  it('enregistre les dossiers retrouvés et compte ceux qui manquent', async () => {
+    createInstance({ kind: 'radarr', name: 'Radarr', url: 'http://r', apiKey: 'k', enabled: true })
+    const root = mediaRoot()
+    fs.mkdirSync(`${root}/films/movies-4k`, { recursive: true })
+    const result = await autoConfigurePaths(1, { roots: async () => ['/data/movies-4k/', '/data/movies-4k', '/introuvable'] })
+    expect(result).toEqual({ found: 1, missing: 1 })
+    expect(listMappings(1).map(m => [m.servicePath, m.realPath, m.managed])).toEqual([['/data/movies-4k', `${root}/films/movies-4k`, true]])
+    expect(getInstance(1)?.pathCount).toBe(1)
+  })
+
+  it('ne touche pas à des correspondances déjà enregistrées', async () => {
+    createInstance({ kind: 'radarr', name: 'Radarr', url: 'http://r', apiKey: 'k', enabled: true })
+    const root = mediaRoot()
+    fs.mkdirSync(`${root}/movies`, { recursive: true })
+    replaceMappings(1, [{ servicePath: '/films', realPath: `${root}/movies`, managed: false }])
+    const roots = vi.fn(async () => ['/movies'])
+    expect(await autoConfigurePaths(1, { roots })).toEqual({ found: 0, missing: 0 })
+    expect(roots).not.toHaveBeenCalled()
+    expect(listMappings(1)).toHaveLength(1)
   })
 })

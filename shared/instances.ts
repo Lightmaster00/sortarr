@@ -39,6 +39,8 @@ export interface InstanceDto {
   lastSyncAt: number | null
   /** La dernière synchro a échoué : les données affichées datent de la précédente. */
   stale: boolean
+  /** Nombre de correspondances de chemins enregistrées (0 = rien de détecté). */
+  pathCount: number
 }
 
 /** Statut de connexion, complété de « données périmées » quand la dernière synchro a échoué. */
