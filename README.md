@@ -26,9 +26,18 @@ docker compose up -d
 Puis ouvrir http://<ip-du-serveur>:3000 :
 
 1. créer le compte admin ;
-2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (bouton « Ajouter une instance » : nom, URL et clé API), puis « Tester la connexion ». Modifier l'URL d'une instance impose de ressaisir sa clé API ;
-3. **Réglages › Chemins** : pour chaque instance, « Suggérer », corriger, « Enregistrer », « Vérifier » ;
-4. cliquer sur « Synchroniser » puis ouvrir le **Catalogue**.
+2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (type, adresse et clé API ; l'interface indique où trouver la clé). Utiliser l'adresse IP du serveur (`http://192.168.1.10:32400`), jamais `localhost`. Sortarr retrouve seul les dossiers de chaque instance sous `/media` ; si ce n'est pas possible, la carte de l'instance le signale avec un bouton « Régler les dossiers » ;
+3. cliquer sur « Synchroniser » puis ouvrir le **Catalogue**.
+
+### « Service injoignable »
+
+Le conteneur Sortarr n'atteint pas le service. Causes habituelles sur Unraid :
+
+- `localhost` ou `127.0.0.1` dans l'adresse : dans Docker, cela désigne Sortarr lui-même ;
+- `https://` vers Plex par adresse IP : le certificat ne correspond pas, utiliser `http://` ;
+- Sortarr ou le service sur le réseau `br0` (IP dédiée) : activer *Settings › Docker › Host access to custom networks*, ou mettre les deux conteneurs sur `bridge`.
+
+Pour tester depuis le conteneur : `docker exec sortarr wget -qO- http://192.168.1.10:32400/identity`.
 
 ### Volumes
 

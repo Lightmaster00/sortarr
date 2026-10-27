@@ -1,2 +1,18 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* Rampe ordinale (une seule teinte) pour la qualité : la plus haute résolution est la plus marquée. */
+:root {
+  --q-2160: #184f95;
+  --q-1080: #2a78d6;
+  --q-720: #5598e7;
+  --q-sd: #86b6ef;
+  --q-unknown: #a1a1aa;
+}
+.dark {
+  --q-2160: #9ec5f4;
+  --q-1080: #5598e7;
+  --q-720: #2a78d6;
+  --q-sd: #1c5cab;
+  --q-unknown: #52525b;
+}

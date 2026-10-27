@@ -12,9 +12,11 @@ const UButton = resolveComponent('UButton')
 
 const api = useApi()
 const toast = useToast()
+const route = useRoute()
 const instances = useState<InstanceDto[]>('instances', () => [])
 const fields = ref<FieldDef[]>([])
-const filter = ref<FilterGroup>(emptyFilter())
+const initialView = typeof route.query.vue === 'string' ? QUICK_VIEW_BY_KEY[route.query.vue] : undefined
+const filter = ref<FilterGroup>(initialView ? initialView.filter() : emptyFilter())
 const search = ref('')
 const page = ref(1)
 const PAGE_SIZE = 50
@@ -24,6 +26,36 @@ const loading = ref(false)
 const loaded = ref(false)
 let seq = 0
 const showFilters = ref(false)
+
+// Vues rapides : un clic remplace le filtre courant.
+const filterJson = computed(() => JSON.stringify(filter.value))
+const activeView = computed(() => QUICK_VIEWS.find(v => JSON.stringify(v.filter()) === filterJson.value)?.key ?? null)
+function applyView(key: string) {
+  filter.value = QUICK_VIEW_BY_KEY[key]!.filter()
+  void navigateTo({ query: { ...route.query, vue: key === 'tout' ? undefined : key } }, { replace: true })
+}
+watch(activeView, (key) => {
+  if (route.query.vue && key !== route.query.vue) void navigateTo({ query: { ...route.query, vue: undefined } }, { replace: true })
+})
+
+// Affichage en affiches ou en tableau, mémorisé dans le navigateur.
+const VIEW_KEY = 'sortarr.catalogue.view'
+function readMode(): 'grid' | 'table' {
+  try { return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'grid' } catch { return 'grid' }
+}
+const mode = ref<'grid' | 'table'>(readMode())
+watch(mode, (value) => {
+  try { localStorage.setItem(VIEW_KEY, value) } catch { /* stockage indisponible */ }
+})
+const SORT_ITEMS: { label: string; value: SortField }[] = [
+  { label: 'Titre', value: 'title' }, { label: 'Année', value: 'year' }, { label: 'Date d\'ajout', value: 'addedAt' },
+  { label: 'Taille', value: 'sizeGb' }, { label: 'Résolution', value: 'resolution' }, { label: 'Dernier visionnage', value: 'lastWatchedAt' },
+  { label: 'Nombre de lectures', value: 'playCount' }, { label: 'Note TMDB', value: 'ratingTmdb' },
+]
+const sortField = computed({
+  get: () => sort.value.field,
+  set: (field: SortField) => { sort.value = { field, dir: field === 'title' ? 'asc' : 'desc' } },
+})
 const detailId = ref<number | null>(null)
 
 const filterErrors = computed(() => validateFilter(filter.value))
@@ -164,34 +196,89 @@ const columnItems = computed(() => Object.entries(COLUMN_LABELS).map(([id, label
 </script>
 
 <template>
-  <AppPage title="Catalogue">
+  <AppPage
+    title="Catalogue"
+    icon="i-lucide-library"
+    description="Tous tes films et séries, croisés entre Radarr, Sonarr, Plex et Jellyfin. Pars d'une vue rapide, ou combine tes propres filtres pour repérer ce qui doit être rangé ou nettoyé."
+  >
     <div class="space-y-4">
+      <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        <UTooltip v-for="v in QUICK_VIEWS" :key="v.key" :text="v.hint">
+          <UButton
+            :label="v.label"
+            :icon="v.icon"
+            size="sm"
+            class="shrink-0 rounded-full"
+            :color="activeView === v.key ? 'primary' : 'neutral'"
+            :variant="activeView === v.key ? 'solid' : 'outline'"
+            @click="applyView(v.key)"
+          />
+        </UTooltip>
+      </div>
+
       <div class="flex flex-wrap items-center gap-2">
-        <UInput v-model="search" icon="i-lucide-search" placeholder="Rechercher un titre…" class="w-72" />
+        <UInput v-model="search" icon="i-lucide-search" placeholder="Rechercher un titre…" class="w-full sm:w-72" />
         <UButton
-          :label="activeConditions ? `Filtres (${activeConditions})` : 'Filtres'"
-          icon="i-lucide-filter"
+          :label="activeConditions ? `Filtres (${activeConditions})` : 'Filtres avancés'"
+          icon="i-lucide-sliders-horizontal"
           :variant="showFilters ? 'solid' : 'soft'"
           @click="showFilters = !showFilters"
         />
-        <UButton v-if="activeConditions" label="Effacer les filtres" color="neutral" variant="ghost" @click="filter = emptyFilter()" />
-        <div class="ml-auto flex items-center gap-3 text-sm text-muted">
-          <span>{{ result.total.toLocaleString('fr-FR') }} titres · {{ formatSize(result.totalSizeGb) }}</span>
-          <UDropdownMenu :items="columnItems" :content="{ align: 'end' }">
+        <UButton v-if="activeConditions" label="Effacer" icon="i-lucide-x" color="neutral" variant="ghost" @click="applyView('tout')" />
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <span class="text-sm text-muted tabular-nums">{{ result.total.toLocaleString('fr-FR') }} titres · {{ formatSize(result.totalSizeGb) }}</span>
+          <template v-if="mode === 'grid'">
+            <USelect v-model="sortField" :items="SORT_ITEMS" class="w-44" aria-label="Trier par" />
+            <UButton
+              :icon="sort.dir === 'asc' ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-down-wide-narrow'"
+              color="neutral"
+              variant="outline"
+              :aria-label="sort.dir === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'"
+              @click="sort = { field: sort.field, dir: sort.dir === 'asc' ? 'desc' : 'asc' }"
+            />
+          </template>
+          <UDropdownMenu v-else :items="columnItems" :content="{ align: 'end' }">
             <UButton label="Colonnes" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" />
           </UDropdownMenu>
+          <UFieldGroup>
+            <UButton icon="i-lucide-layout-grid" :color="mode === 'grid' ? 'primary' : 'neutral'" :variant="mode === 'grid' ? 'soft' : 'outline'" aria-label="Affiches" @click="mode = 'grid'" />
+            <UButton icon="i-lucide-table" :color="mode === 'table' ? 'primary' : 'neutral'" :variant="mode === 'table' ? 'soft' : 'outline'" aria-label="Tableau" @click="mode = 'table'" />
+          </UFieldGroup>
         </div>
       </div>
 
       <UCard v-if="showFilters">
+        <p class="text-sm text-muted mb-3">Chaque ligne est une condition. « Toutes » = le titre doit les remplir toutes ; « Au moins une » = une seule suffit. Les groupes permettent de mélanger les deux.</p>
         <FilterBuilder v-if="fields.length" v-model="filter" :fields="fields" />
         <UAlert v-if="filterErrors.length" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" title="Filtre incomplet" :description="filterErrors.join(' ; ')" />
       </UCard>
 
-      <UTable v-model:column-visibility="columnVisibility" :data="result.rows" :columns="columns" :loading="loading" sticky class="max-h-[calc(100vh-16rem)]" />
-      <p v-if="loaded && !loading && !result.total" class="text-center text-muted py-6">
-        Aucun titre. Lance une synchro, ou élargis les filtres.
-      </p>
+      <div v-if="mode === 'grid'" class="relative">
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-4 gap-y-5" :class="{ 'opacity-60': loading }">
+          <button v-for="r in result.rows" :key="r.id" type="button" class="text-left group self-start" @click="detailId = r.id">
+            <PosterImage :id="r.id" :title="r.title" :type="r.type" class="group-hover:ring-2 group-hover:ring-primary transition-shadow">
+              <div class="absolute top-1.5 left-1.5 right-1.5 flex flex-wrap gap-1">
+                <span v-if="r.resolution" class="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">{{ resolutionLabel(r.resolution) }}</span>
+                <span v-if="r.type === 'series'" class="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">Série</span>
+              </div>
+              <div v-if="r.neverWatched" class="absolute bottom-1.5 right-1.5 rounded-full bg-black/70 p-1" title="Jamais vu">
+                <UIcon name="i-lucide-eye-off" class="size-3.5 text-white" />
+              </div>
+              <div v-if="!r.instances.length || !r.servers.length" class="absolute bottom-1.5 left-1.5 rounded-full bg-warning p-1" :title="!r.instances.length ? 'Suivi par aucun Radarr/Sonarr' : 'Absent de Plex et Jellyfin'">
+                <UIcon name="i-lucide-triangle-alert" class="size-3.5 text-inverted" />
+              </div>
+            </PosterImage>
+            <p class="text-sm font-medium mt-1.5 line-clamp-2 leading-snug group-hover:text-primary">{{ r.title }}</p>
+            <p class="text-xs text-muted">{{ r.year ?? '—' }} · {{ formatSize(r.sizeGb) }}</p>
+          </button>
+        </div>
+      </div>
+      <UTable v-else v-model:column-visibility="columnVisibility" :data="result.rows" :columns="columns" :loading="loading" sticky class="max-h-[calc(100vh-16rem)]" />
+
+      <div v-if="loaded && !loading && !result.total" class="text-center py-10 space-y-2">
+        <UIcon name="i-lucide-search-x" class="size-10 text-dimmed mx-auto" />
+        <p class="text-muted">Aucun titre ne correspond. Élargis les filtres, ou lance une synchro si le catalogue est vide.</p>
+      </div>
 
       <div v-if="result.total > PAGE_SIZE" class="flex justify-center">
         <UPagination v-model:page="page" :total="result.total" :items-per-page="PAGE_SIZE" />

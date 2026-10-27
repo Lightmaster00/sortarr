@@ -22,7 +22,13 @@ async function submit() {
 </script>
 
 <template>
-  <UCard class="w-full max-w-sm">
+  <div class="w-full max-w-sm space-y-6">
+  <div class="text-center space-y-2">
+    <img src="/icon.svg" alt="" class="size-14 mx-auto">
+    <p class="text-2xl font-semibold tracking-tight">Sortarr</p>
+    <p class="text-sm text-muted">Range et nettoie ta médiathèque Plex / Jellyfin.</p>
+  </div>
+  <UCard>
     <template #header>
       <h1 class="text-lg font-semibold">Bienvenue dans Sortarr</h1>
       <p class="text-sm text-muted mt-1">Crée le compte administrateur. Tu ajouteras ensuite tes instances.</p>
@@ -40,4 +46,5 @@ async function submit() {
       <UButton type="submit" label="Créer le compte" block :loading="loading" />
     </UForm>
   </UCard>
+</div>
 </template>

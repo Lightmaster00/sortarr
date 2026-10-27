@@ -1,20 +1,14 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
-import type { TableColumn } from '@nuxt/ui'
-import { KIND_LABELS, statusDot, statusLabel, type InstanceDto, type TestResult } from '#shared/instances'
-import { formatDateTime } from '#shared/format'
-
-const UBadge = resolveComponent('UBadge')
-const UButton = resolveComponent('UButton')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
+import { KIND_LABELS, isArrKind, type InstanceDto, type InstanceKind, type TestResult } from '#shared/instances'
 
 const api = useApi()
 const toast = useToast()
 const instances = useState<InstanceDto[]>('instances', () => [])
+const { state: sync } = useSyncState()
 const loading = ref(true)
+const showHelp = ref(false)
 
 async function refresh() {
-  loading.value = true
   try {
     instances.value = await api<InstanceDto[]>('/api/instances')
   } catch (e) {
@@ -24,32 +18,46 @@ async function refresh() {
   }
 }
 
+const managers = computed(() => instances.value.filter(i => isArrKind(i.kind)))
+const servers = computed(() => instances.value.filter(i => !isArrKind(i.kind)))
+const resultOf = (id: number) => sync.value?.results.find(r => r.instanceId === id)
+
 // Formulaire d'ajout / édition
 const formOpen = ref(false)
 const editing = ref<InstanceDto | null>(null)
+const presetKind = ref<InstanceKind | null>(null)
 const formKey = ref(0)
-function openForm(instance: InstanceDto | null) {
+function openForm(instance: InstanceDto | null, kind: InstanceKind | null = null) {
   editing.value = instance
+  presetKind.value = kind
   formKey.value++
   formOpen.value = true
 }
 async function onSaved(instance: InstanceDto, created: boolean) {
   formOpen.value = false
   await refresh()
-  toast.add(created
-    ? { title: `${instance.name} ajoutée`, description: 'Configure maintenant la correspondance des chemins.', color: 'success', actions: [{ label: 'Configurer les chemins', to: `/reglages/chemins?instance=${instance.id}` }] }
-    : { title: `${instance.name} enregistrée`, color: 'success' })
+  const saved = instances.value.find(i => i.id === instance.id) ?? instance
+  if (!created) {
+    toast.add({ title: `${saved.name} enregistrée`, color: 'success' })
+    return
+  }
+  toast.add(saved.pathCount > 0
+    ? { title: `${saved.name} ajoutée`, description: 'Ses dossiers ont été retrouvés automatiquement. Lance une synchro pour remplir le catalogue.', color: 'success', icon: 'i-lucide-circle-check' }
+    : { title: `${saved.name} ajoutée`, description: 'Ses dossiers n\'ont pas été retrouvés sous /media : vérifie le volume monté, ou règle-les à la main.', color: 'warning', actions: [{ label: 'Régler les dossiers', to: `/reglages/chemins?instance=${saved.id}` }] })
 }
 
+const testingId = ref<number | null>(null)
 async function test(instance: InstanceDto) {
-  toast.add({ title: `${instance.name} : test en cours…`, color: 'neutral' })
+  testingId.value = instance.id
   try {
     const r = await api<TestResult>('/api/instances/test', { method: 'POST', body: { id: instance.id, kind: instance.kind, url: instance.url } })
     toast.add(r.ok
       ? { title: `${instance.name} : connexion réussie`, description: `Version ${r.discovery.version}`, color: 'success' }
-      : { title: `${instance.name} : connexion impossible`, description: r.error, color: 'error' })
+      : { title: `${instance.name} : connexion impossible`, description: r.error, color: 'error', duration: 15_000 })
   } catch (e) {
     toast.add({ title: 'Test impossible', description: errorMessage(e), color: 'error' })
+  } finally {
+    testingId.value = null
   }
   await refresh()
 }
@@ -84,75 +92,73 @@ async function confirmDelete() {
 onMounted(refresh)
 onSyncFinished(refresh)
 
-const columns: TableColumn<InstanceDto>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Instance',
-    cell: ({ row }) => h('div', [
-      h('p', { class: 'font-medium' }, row.original.name),
-      h('p', { class: 'text-xs text-muted' }, row.original.url),
-    ]),
-  },
-  {
-    accessorKey: 'kind',
-    header: 'Type',
-    cell: ({ row }) => h(UBadge, { variant: 'subtle', color: 'neutral' }, () => KIND_LABELS[row.original.kind]),
-  },
-  {
-    accessorKey: 'lastStatus',
-    header: 'État',
-    cell: ({ row }) => h('div', { class: 'flex items-center gap-2 max-w-80' }, [
-      h('span', { class: ['block size-2.5 shrink-0 rounded-full', row.original.enabled ? statusDot(row.original) : 'bg-neutral-300'] }),
-      h('span', { class: 'text-sm' }, row.original.enabled ? statusLabel(row.original) : 'désactivée'),
-      row.original.lastError ? h('span', { class: 'text-xs text-error truncate', title: row.original.lastError }, row.original.lastError) : null,
-    ]),
-  },
-  { accessorKey: 'version', header: 'Version', cell: ({ row }) => row.original.version ?? '—' },
-  { accessorKey: 'lastSyncAt', header: 'Dernière synchro', cell: ({ row }) => formatDateTime(row.original.lastSyncAt) },
-  {
-    id: 'actions',
-    meta: { class: { td: 'text-right' } },
-    cell: ({ row }) => h(UDropdownMenu, {
-      content: { align: 'end' },
-      items: [
-        [
-          { label: 'Modifier', icon: 'i-lucide-pencil', onSelect: () => openForm(row.original) },
-          { label: 'Tester la connexion', icon: 'i-lucide-plug-zap', onSelect: () => test(row.original) },
-          { label: 'Chemins', icon: 'i-lucide-folder-tree', to: `/reglages/chemins?instance=${row.original.id}` },
-          { label: row.original.enabled ? 'Désactiver' : 'Activer', icon: 'i-lucide-power', onSelect: () => toggle(row.original) },
-        ],
-        [{ label: 'Supprimer', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => { toDelete.value = row.original } }],
-      ],
-    }, () => h(UButton, { icon: 'i-lucide-ellipsis-vertical', color: 'neutral', variant: 'ghost', 'aria-label': 'Actions' })),
-  },
-]
+const SECTIONS = [
+  { key: 'managers', title: 'Gestionnaires', hint: 'Radarr et Sonarr : ce que tu possèdes.', kinds: ['radarr', 'sonarr'] as InstanceKind[] },
+  { key: 'servers', title: 'Serveurs média', hint: 'Plex et Jellyfin : ce qui est visible et ce qui a été regardé.', kinds: ['plex', 'jellyfin'] as InstanceKind[] },
+] as const
+const listOf = (key: 'managers' | 'servers') => (key === 'managers' ? managers.value : servers.value)
 </script>
 
 <template>
-  <AppPage title="Instances">
-    <div class="space-y-4">
-      <div class="flex justify-between items-center">
-        <p class="text-sm text-muted">Radarr, Sonarr, Plex et Jellyfin : ajoute autant d'instances que nécessaire.</p>
-        <UButton icon="i-lucide-plus" label="Ajouter une instance" @click="openForm(null)" />
-      </div>
+  <AppPage
+    title="Instances"
+    icon="i-lucide-server"
+    description="Branche ici tes services. Sortarr lit leurs informations (sans jamais rien modifier) et retrouve tout seul leurs dossiers sur le disque."
+  >
+    <template #actions>
+      <UButton label="Comment ça marche ?" icon="i-lucide-circle-help" color="neutral" variant="ghost" @click="showHelp = !showHelp" />
+      <UButton icon="i-lucide-plus" label="Ajouter une instance" @click="openForm(null)" />
+    </template>
 
-      <UTable :data="instances" :columns="columns" :loading="loading">
-        <template #empty>
-          <p class="text-center text-muted py-8">Aucune instance pour l'instant.</p>
-        </template>
-      </UTable>
+    <div class="space-y-8">
+      <UCard v-if="showHelp || (!loading && !instances.length)">
+        <HowItWorks />
+      </UCard>
+
+      <section v-for="s in SECTIONS" :key="s.key" class="space-y-3">
+        <div class="flex flex-wrap items-baseline gap-x-3">
+          <h2 class="text-base font-semibold">{{ s.title }}</h2>
+          <p class="text-sm text-muted">{{ s.hint }}</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <InstanceCard
+            v-for="i in listOf(s.key)"
+            :key="i.id"
+            :instance="i"
+            :result="resultOf(i.id)"
+            :testing="testingId === i.id"
+            @edit="openForm(i)"
+            @test="test(i)"
+            @toggle="toggle(i)"
+            @remove="toDelete = i"
+          />
+          <button
+            v-for="kind in s.kinds"
+            :key="kind"
+            type="button"
+            class="group rounded-xl border-2 border-dashed border-default hover:border-primary/60 hover:bg-primary/5 transition-colors p-4 flex items-center gap-3 text-left min-h-24"
+            @click="openForm(null, kind)"
+          >
+            <ServiceLogo :kind="kind" />
+            <span>
+              <span class="block font-medium text-sm group-hover:text-primary">Ajouter {{ KIND_LABELS[kind] }}</span>
+              <span class="block text-xs text-muted">{{ SERVICES[kind].description }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
     </div>
 
-    <USlideover v-model:open="formOpen" :title="editing ? `Modifier ${editing.name}` : 'Ajouter une instance'">
+    <USlideover v-model:open="formOpen" :title="editing ? `Modifier ${editing.name}` : 'Ajouter une instance'" :description="editing ? undefined : 'Trois informations suffisent : le type, l\'adresse et la clé API.'">
       <template #body>
-        <InstanceForm :key="formKey" :instance="editing" @saved="onSaved" @cancel="formOpen = false" />
+        <InstanceForm :key="formKey" :instance="editing" :preset-kind="presetKind" @saved="onSaved" @cancel="formOpen = false" />
       </template>
     </USlideover>
 
     <UModal :open="toDelete !== null" title="Supprimer l'instance ?" @update:open="(open: boolean) => { if (!open) toDelete = null }">
       <template #body>
         <p>
-          « {{ toDelete?.name }} » sera retirée de Sortarr, avec ses correspondances de chemins et ses données synchronisées.
+          « {{ toDelete?.name }} » sera retirée de Sortarr, avec ses données synchronisées.
           Rien n'est modifié dans {{ toDelete ? KIND_LABELS[toDelete.kind] : '' }}.
         </p>
       </template>
@@ -163,6 +169,5 @@ const columns: TableColumn<InstanceDto>[] = [
         </div>
       </template>
     </UModal>
-
   </AppPage>
 </template>

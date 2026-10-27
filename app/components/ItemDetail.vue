@@ -37,10 +37,31 @@ const MAX_FILES = 100
     v-model:open="open"
     :title="detail ? `${detail.item.title}${detail.item.year ? ` (${detail.item.year})` : ''}` : 'Chargement…'"
     :description="detail ? (detail.item.type === 'movie' ? 'Film' : 'Série') : undefined"
-    :ui="{ content: 'max-w-3xl' }"
+    :ui="{ content: 'w-full sm:max-w-2xl' }"
   >
     <template #body>
       <div v-if="detail" class="space-y-6 text-sm">
+        <section class="flex gap-4">
+          <PosterImage :id="detail.item.id" :title="detail.item.title" :type="detail.item.type" class="w-28 sm:w-36 shrink-0" />
+          <div class="min-w-0 space-y-3">
+            <div class="flex flex-wrap gap-1.5">
+              <UBadge :label="detail.item.type === 'movie' ? 'Film' : 'Série'" variant="subtle" />
+              <UBadge v-for="p in detail.presences" :key="`b-${p.instanceId}`" color="neutral" variant="outline" :label="p.instanceName" />
+            </div>
+            <div class="grid grid-cols-2 gap-2 max-w-sm">
+              <div class="rounded-lg bg-elevated/50 px-3 py-2">
+                <p class="text-xs text-muted">Taille</p>
+                <p class="font-semibold">{{ formatSize(detail.files.reduce((n, f) => n + f.size, 0) / GB) }}</p>
+              </div>
+              <div class="rounded-lg bg-elevated/50 px-3 py-2">
+                <p class="text-xs text-muted">Lectures</p>
+                <p class="font-semibold">{{ detail.history.reduce((n, h) => n + h.playCount, 0) }}</p>
+              </div>
+            </div>
+            <p v-if="detail.item.genres.length" class="text-muted">{{ detail.item.genres.join(' · ') }}</p>
+          </div>
+        </section>
+
         <section>
           <h3 class="font-semibold mb-2">Informations</h3>
           <dl class="grid grid-cols-[10rem_1fr] gap-y-1">

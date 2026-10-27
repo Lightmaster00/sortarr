@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { KIND_LABELS, type InstanceDto } from '#shared/instances'
+import { KIND_LABELS, isArrKind, type InstanceDto } from '#shared/instances'
 import type { PathCheck, PathMapping, PathSuggestion } from '#shared/paths'
 
 interface OtherEntry { instanceId: number; name: string; mappings: { realPath: string; managed: boolean }[] }
@@ -20,6 +20,8 @@ const busy = ref<'load' | 'suggest' | 'save' | 'verify' | null>(null)
 const instanceItems = computed(() => instances.value.map(i => ({ label: `${i.name} (${KIND_LABELS[i.kind]})`, value: i.id })))
 const selected = computed(() => instances.value.find(i => i.id === selectedId.value) ?? null)
 const locked = computed(() => !selected.value || !loaded.value)
+const isArr = computed(() => (selected.value ? isArrKind(selected.value.kind) : false))
+const example = computed(() => (rows.value.find(r => r.servicePath && r.realPath) ?? { servicePath: '/movies', realPath: `${mediaRootDir.value || '/media'}/films` }))
 
 function normalize(p: string) {
   return p.trim().replace(/\/+$/, '')
@@ -176,58 +178,86 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppPage title="Chemins">
+  <AppPage
+    title="Dossiers"
+    icon="i-lucide-folder-tree"
+    description="Réglage avancé, normalement automatique. Chaque service voit tes dossiers sous un nom différent : Sortarr doit savoir à quel dossier du disque correspond chacun d'eux pour relier les titres et vérifier les fichiers."
+  >
+    <template #actions>
+      <UButton label="Retour aux instances" icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/reglages/instances" />
+    </template>
+
     <div class="space-y-4 max-w-5xl">
-      <p class="text-sm text-muted">
-        Chaque service voit les dossiers sous un chemin différent. Indique à quel dossier de
-        <code>{{ mediaRootDir }}</code> (la racine médias montée dans Sortarr) correspond chaque chemin du service.
-      </p>
+      <UCard :ui="{ body: 'p-4 sm:p-4' }">
+        <p class="text-xs font-medium text-muted mb-3">Exemple</p>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
+          <div class="flex items-center gap-2 rounded-lg border border-default px-3 py-2 min-w-0">
+            <ServiceLogo v-if="selected" :kind="selected.kind" size="sm" />
+            <div class="min-w-0">
+              <p class="text-xs text-muted">{{ selected?.name ?? 'Le service' }} voit</p>
+              <p class="font-mono truncate">{{ example.servicePath }}</p>
+            </div>
+          </div>
+          <UIcon name="i-lucide-arrow-right" class="size-5 text-primary self-center rotate-90 sm:rotate-0 shrink-0" />
+          <div class="flex items-center gap-2 rounded-lg border-2 border-primary/50 bg-primary/5 px-3 py-2 min-w-0">
+            <img src="/icon.svg" alt="" class="size-7 shrink-0">
+            <div class="min-w-0">
+              <p class="text-xs text-muted">Sortarr lit sur le disque</p>
+              <p class="font-mono truncate">{{ example.realPath }}</p>
+            </div>
+          </div>
+        </div>
+      </UCard>
 
       <div class="flex flex-wrap items-center gap-2">
         <USelect v-model="selectedId" :items="instanceItems" placeholder="Choisis une instance" class="w-72" :disabled="busy === 'suggest' || busy === 'save'" />
-        <UButton icon="i-lucide-wand-sparkles" label="Suggérer" variant="soft" :loading="busy === 'suggest'" :disabled="locked" @click="suggest" />
-        <UButton icon="i-lucide-plus" label="Ajouter une ligne" variant="ghost" :disabled="locked" @click="addRow" />
+        <UButton icon="i-lucide-wand-sparkles" label="Détecter automatiquement" variant="soft" :loading="busy === 'suggest'" :disabled="locked" @click="suggest" />
         <div class="ml-auto flex gap-2">
-          <UButton icon="i-lucide-search-check" label="Vérifier" variant="outline" :loading="busy === 'verify'" :disabled="locked" @click="verify" />
+          <UButton icon="i-lucide-search-check" label="Vérifier sur le disque" variant="outline" :loading="busy === 'verify'" :disabled="locked" @click="verify" />
           <UButton icon="i-lucide-save" label="Enregistrer" :loading="busy === 'save'" :disabled="locked" @click="save" />
         </div>
       </div>
 
       <UCard v-if="selected">
-        <div class="grid grid-cols-[1fr_1fr_auto_auto] gap-x-3 gap-y-2 items-center">
-          <span class="text-xs font-medium text-muted">Chemin vu par {{ selected.name }}</span>
-          <span class="text-xs font-medium text-muted">Chemin réel sous {{ mediaRootDir }}</span>
-          <span class="text-xs font-medium text-muted">Géré</span>
+        <div class="grid gap-x-3 gap-y-2 items-center" :class="isArr ? 'grid-cols-[1fr_auto_1fr_auto_auto]' : 'grid-cols-[1fr_auto_1fr_auto]'">
+          <span class="text-xs font-medium text-muted">Dossier vu par {{ selected.name }}</span>
+          <span />
+          <span class="text-xs font-medium text-muted">Dossier sur le disque (sous {{ mediaRootDir }})</span>
+          <UTooltip v-if="isArr" text="Décoche pour un dossier que Radarr/Sonarr ne doit pas gérer : son contenu ne sera pas signalé comme orphelin.">
+            <span class="text-xs font-medium text-muted inline-flex items-center gap-1">Géré <UIcon name="i-lucide-circle-help" class="size-3.5" /></span>
+          </UTooltip>
           <span />
           <template v-for="(row, index) in rows" :key="index">
             <div>
-              <UInput v-model="row.servicePath" placeholder="/movies" class="w-full" />
+              <UInput v-model="row.servicePath" placeholder="/movies" class="w-full font-mono" />
               <p v-if="row.label && row.label !== row.servicePath" class="text-xs text-muted mt-0.5">{{ row.label }}</p>
             </div>
+            <UIcon name="i-lucide-arrow-right" class="size-4 text-muted" />
             <div>
-              <UInput v-model="row.realPath" :placeholder="`${mediaRootDir}/movies`" class="w-full" :color="row.realPath ? undefined : 'warning'" />
+              <UInput v-model="row.realPath" :placeholder="`${mediaRootDir}/movies`" class="w-full font-mono" :color="row.realPath ? undefined : 'warning'" :highlight="!row.realPath" />
+              <p v-if="!row.realPath" class="text-xs text-warning mt-0.5">Introuvable automatiquement : indique le dossier.</p>
               <p v-if="usedBy(row)" class="text-xs text-warning mt-0.5">Déjà utilisé par {{ usedBy(row) }}</p>
             </div>
-            <UTooltip text="Décoché : dossier volontairement non géré par un *arr (exclu des orphelins).">
-              <USwitch v-model="row.managed" />
-            </UTooltip>
+            <USwitch v-if="isArr" v-model="row.managed" :aria-label="`Dossier ${row.servicePath} géré`" />
             <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" aria-label="Supprimer la ligne" @click="removeRow(index)" />
           </template>
         </div>
-        <p v-if="!rows.length" class="text-sm text-muted py-4 text-center">
-          Aucune correspondance. Clique sur « Suggérer » pour partir des dossiers découverts.
-        </p>
+        <div v-if="!rows.length" class="py-6 text-center space-y-2">
+          <UIcon name="i-lucide-folder-search" class="size-8 text-muted mx-auto" />
+          <p class="text-sm text-muted">Aucun dossier pour l'instant. Clique sur « Détecter automatiquement ».</p>
+        </div>
+        <UButton class="mt-3" icon="i-lucide-plus" label="Ajouter une ligne à la main" size="sm" color="neutral" variant="ghost" :disabled="locked" @click="addRow" />
       </UCard>
 
       <UCard v-if="checks">
-        <template #header><h2 class="font-medium">Résultat de la vérification</h2></template>
+        <template #header><h2 class="font-medium">Vérification sur le disque</h2></template>
         <ul class="space-y-1 text-sm">
           <li v-for="c in checks" :key="c.servicePath" class="flex items-start gap-2">
             <UIcon :name="c.exists ? 'i-lucide-circle-check' : 'i-lucide-circle-x'" :class="c.exists ? 'text-success' : 'text-error'" class="size-4 mt-0.5 shrink-0" />
             <span><code>{{ c.servicePath }}</code> → <code>{{ c.realPath ?? '?' }}</code> — {{ c.message }}</span>
           </li>
         </ul>
-        <p v-if="!checks.length" class="text-sm text-muted">Rien à vérifier : enregistre d'abord des correspondances.</p>
+        <p v-if="!checks.length" class="text-sm text-muted">Rien à vérifier : enregistre d'abord des dossiers.</p>
       </UCard>
     </div>
   </AppPage>

@@ -28,3 +28,16 @@ export function fold(value: unknown): string {
 export function trimTrailingSlash(p: string): string {
   return p.replace(/\/+$/, '') || '/'
 }
+
+/** « il y a 5 min », « il y a 3 h », « il y a 2 j » ; au-delà d'un mois, la date. */
+export function formatRelative(ts: number | null, now = Date.now()): string {
+  if (ts === null) return 'jamais'
+  const minutes = Math.round((now - ts) / 60_000)
+  if (minutes < 1) return 'à l\'instant'
+  if (minutes < 60) return `il y a ${minutes} min`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `il y a ${hours} h`
+  const days = Math.round(hours / 24)
+  if (days < 31) return `il y a ${days} j`
+  return `le ${formatDate(ts)}`
+}
