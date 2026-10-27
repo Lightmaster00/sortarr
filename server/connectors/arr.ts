@@ -22,7 +22,7 @@ export interface RadarrMovie {
 
 export interface SonarrSeries {
   id: number; title: string; year?: number; tvdbId?: number; tmdbId?: number; imdbId?: string
-  originalLanguage?: { name?: string }; genres?: string[]; added?: string
+  originalLanguage?: { name?: string }; genres?: string[]; added?: string; ratings?: { value?: number; votes?: number }
   path: string; rootFolderPath?: string; monitored: boolean; tags?: number[]
   statistics?: { episodeFileCount?: number; sizeOnDisk?: number }
 }
@@ -88,6 +88,7 @@ export function mapRadarrMovie(m: RadarrMovie, tags: Map<number, string>): ArrIt
     genres: m.genres ?? [],
     ratingTmdb: orNull(m.ratings?.tmdb?.value),
     ratingImdb: orNull(m.ratings?.imdb?.value),
+    ratingSonarr: null,
     addedAt: parseDate(m.added),
     servicePath: m.path,
     rootFolder: trimDir(m.rootFolderPath),
@@ -119,6 +120,8 @@ export function mapSonarrSeries(s: SonarrSeries, episodes: SonarrEpisode[], file
     genres: s.genres ?? [],
     ratingTmdb: null,
     ratingImdb: null,
+    // Une note à 0 sans votes veut dire « pas de note ».
+    ratingSonarr: s.ratings?.value && (s.ratings.votes ?? 1) > 0 ? s.ratings.value : null,
     addedAt: parseDate(s.added),
     servicePath: s.path,
     rootFolder: trimDir(s.rootFolderPath),

@@ -8,7 +8,7 @@ import { useTestDb } from '../../helpers/db'
 const db = useTestDb()
 beforeEach(() => resetSyncStateForTests())
 
-const record = { externalId: 1, type: 'movie' as const, title: 'Dune', year: 2021, tmdbId: 1, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: [], ratingTmdb: null, ratingImdb: null, addedAt: null, servicePath: '/movies/Dune', rootFolder: '/movies', monitored: true, hasFile: true, size: 1, tags: [], files: [] }
+const record = { externalId: 1, type: 'movie' as const, title: 'Dune', year: 2021, tmdbId: 1, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: [], ratingTmdb: null, ratingImdb: null, ratingSonarr: null, addedAt: null, servicePath: '/movies/Dune', rootFolder: '/movies', monitored: true, hasFile: true, size: 1, tags: [], files: [] }
 
 function deps(overrides: Partial<SyncDeps> = {}): SyncDeps {
   return {

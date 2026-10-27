@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { fold } from './format'
 
 export const FIELD_KEYS = [
-  'type', 'title', 'year', 'originalLanguage', 'genres', 'ratingTmdb', 'ratingImdb', 'addedAt', 'sizeGb', 'resolution',
+  'type', 'title', 'year', 'originalLanguage', 'genres', 'rating', 'ratingTmdb', 'ratingImdb', 'addedAt', 'sizeGb', 'resolution',
   'videoCodecs', 'audioLanguages', 'subtitleLanguages', 'isRemux', 'instances', 'servers', 'libraries', 'rootFolders', 'tags',
   'monitored', 'hasFile', 'neverWatched', 'lastWatchedAt', 'playCount',
 ] as const
@@ -17,6 +17,8 @@ export interface CatalogRow {
   year: number | null
   originalLanguage: string | null
   genres: string[]
+  /** Note unique sur 10 : TMDB (IMDb à défaut) pour un film, note Sonarr pour une série. */
+  rating: number | null
   ratingTmdb: number | null
   ratingImdb: number | null
   addedAt: number | null
@@ -56,6 +58,7 @@ export const FIELDS: FieldDef[] = [
   { key: 'year', label: 'Année', type: 'number' },
   { key: 'originalLanguage', label: 'Langue originale', type: 'enum', dynamicOptions: true },
   { key: 'genres', label: 'Genres', type: 'list', dynamicOptions: true },
+  { key: 'rating', label: 'Note (sur 10)', type: 'number' },
   { key: 'ratingTmdb', label: 'Note TMDB', type: 'number' },
   { key: 'ratingImdb', label: 'Note IMDb', type: 'number' },
   { key: 'addedAt', label: "Date d'ajout", type: 'date' },

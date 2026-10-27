@@ -11,7 +11,7 @@ const db = useTestDb()
 
 function movie(externalId: number, title: string, tmdbId: number): ArrItemRecord {
   return {
-    externalId, type: 'movie', title, year: 2021, tmdbId, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: [], ratingTmdb: null, ratingImdb: null,
+    externalId, type: 'movie', title, year: 2021, tmdbId, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: [], ratingTmdb: null, ratingImdb: null, ratingSonarr: null,
     addedAt: null, servicePath: `/movies/${title}`, rootFolder: '/movies', monitored: true, hasFile: true, size: 0, tags: [], files: [],
   }
 }

@@ -21,7 +21,7 @@ describe('mapRadarrMovie', () => {
   it('normalise un film', () => {
     expect(mapRadarrMovie(movie, tags)).toEqual({
       externalId: 7, type: 'movie', title: 'Dune', year: 2021, tmdbId: 438631, tvdbId: null, imdbId: 'tt1160419',
-      originalLanguage: 'en', genres: ['Science Fiction'], ratingTmdb: 7.8, ratingImdb: 8,
+      originalLanguage: 'en', genres: ['Science Fiction'], ratingTmdb: 7.8, ratingImdb: 8, ratingSonarr: null,
       addedAt: Date.parse('2024-01-05T10:00:00Z'), servicePath: '/movies/Dune (2021)', rootFolder: '/movies',
       monitored: true, hasFile: true, size: 9_000_000_000, tags: ['4k'],
       files: [{
@@ -66,6 +66,12 @@ describe('mapSonarrSeries', () => {
     expect(r).toMatchObject({ type: 'series', tvdbId: 280619, tmdbId: 63639, hasFile: true, size: 3000, tags: ['kids'], ratingTmdb: null })
     expect(r.files).toHaveLength(2)
     expect(r.files[1]).toMatchObject({ externalId: 12, season: 1, episode: 2, resolution: 1080, audioLanguages: ['en', 'fr'] })
+  })
+
+  it('reprend la note Sonarr, sauf une note sans votes', () => {
+    expect(mapSonarrSeries({ ...series, ratings: { value: 8.4, votes: 1200 } }, [], [], tags).ratingSonarr).toBe(8.4)
+    expect(mapSonarrSeries({ ...series, ratings: { value: 0, votes: 0 } }, [], [], tags).ratingSonarr).toBeNull()
+    expect(mapSonarrSeries(series, [], [], tags).ratingSonarr).toBeNull()
   })
 
   it('a hasFile faux sans fichier', () => {

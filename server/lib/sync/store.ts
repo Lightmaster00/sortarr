@@ -26,13 +26,14 @@ function idCandidates(r: Ids): string[] {
 }
 
 const UPSERT_ARR_ITEM = `
-  INSERT INTO items (item_key, type, title, year, tmdb_id, tvdb_id, imdb_id, original_language, genres, rating_tmdb, rating_imdb, added_at, updated_at)
-  VALUES (@key, @type, @title, @year, @tmdbId, @tvdbId, @imdbId, @originalLanguage, @genres, @ratingTmdb, @ratingImdb, @addedAt, @now)
+  INSERT INTO items (item_key, type, title, year, tmdb_id, tvdb_id, imdb_id, original_language, genres, rating_tmdb, rating_imdb, rating_sonarr, added_at, updated_at)
+  VALUES (@key, @type, @title, @year, @tmdbId, @tvdbId, @imdbId, @originalLanguage, @genres, @ratingTmdb, @ratingImdb, @ratingSonarr, @addedAt, @now)
   ON CONFLICT(item_key) DO UPDATE SET
     title = excluded.title, year = excluded.year,
     tmdb_id = COALESCE(excluded.tmdb_id, items.tmdb_id), tvdb_id = COALESCE(excluded.tvdb_id, items.tvdb_id), imdb_id = COALESCE(excluded.imdb_id, items.imdb_id),
     original_language = COALESCE(excluded.original_language, items.original_language), genres = excluded.genres,
     rating_tmdb = COALESCE(excluded.rating_tmdb, items.rating_tmdb), rating_imdb = COALESCE(excluded.rating_imdb, items.rating_imdb),
+    rating_sonarr = COALESCE(excluded.rating_sonarr, items.rating_sonarr),
     added_at = excluded.added_at,
     updated_at = excluded.updated_at
   RETURNING id`
@@ -71,7 +72,7 @@ export function storeArrInstance(db: Db, instanceId: number, records: ArrItemRec
       const { id } = upsert.get({
         key: itemKey(r, `path:${realFolder ?? `${instanceId}:${r.servicePath}`}`),
         type: r.type, title: r.title, year: r.year, tmdbId: r.tmdbId, tvdbId: r.tvdbId, imdbId: r.imdbId,
-        originalLanguage: r.originalLanguage, genres: JSON.stringify(r.genres), ratingTmdb: r.ratingTmdb, ratingImdb: r.ratingImdb,
+        originalLanguage: r.originalLanguage, genres: JSON.stringify(r.genres), ratingTmdb: r.ratingTmdb, ratingImdb: r.ratingImdb, ratingSonarr: r.ratingSonarr ?? null,
         addedAt: r.addedAt, now,
       }) as { id: number }
       insertPresence.run(id, instanceId, String(r.externalId), null, r.rootFolder, realFolder, r.monitored ? 1 : 0, r.hasFile ? 1 : 0, r.size, JSON.stringify(r.tags), now, r.addedAt)

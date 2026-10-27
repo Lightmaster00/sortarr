@@ -3,7 +3,7 @@ import { filterNodeSchema, type CatalogRow } from './filters'
 import type { InstanceDto, InstanceKind } from './instances'
 import type { SyncStateDto } from './sync'
 
-export const SORT_FIELDS = ['title', 'year', 'addedAt', 'sizeGb', 'resolution', 'lastWatchedAt', 'playCount', 'ratingTmdb', 'ratingImdb'] as const
+export const SORT_FIELDS = ['title', 'year', 'addedAt', 'sizeGb', 'resolution', 'lastWatchedAt', 'playCount', 'rating', 'ratingTmdb', 'ratingImdb'] as const
 export type SortField = typeof SORT_FIELDS[number]
 
 export const catalogQuerySchema = z.object({
@@ -20,7 +20,7 @@ export interface CatalogResult { rows: CatalogRow[]; total: number; totalSizeGb:
 export interface ItemDetail {
   item: {
     id: number; type: 'movie' | 'series'; title: string; year: number | null; tmdbId: number | null; tvdbId: number | null; imdbId: string | null
-    originalLanguage: string | null; genres: string[]; ratingTmdb: number | null; ratingImdb: number | null; addedAt: number | null
+    originalLanguage: string | null; genres: string[]; rating: number | null; ratingTmdb: number | null; ratingImdb: number | null; addedAt: number | null
   }
   presences: {
     instanceId: number; instanceName: string; kind: InstanceKind; externalId: string; library: string | null; rootFolder: string | null

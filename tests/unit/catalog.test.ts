@@ -17,7 +17,7 @@ function seed() {
   const ins = db().prepare("INSERT INTO instances (kind, name, url, api_key_enc, created_at) VALUES (?, ?, 'http://x', 'k', 0)")
   ins.run('radarr', 'Radarr'); ins.run('sonarr', 'Sonarr'); ins.run('plex', 'Plex')
   const base: Omit<ArrItemRecord, 'externalId' | 'title' | 'type' | 'servicePath' | 'files'> = {
-    year: 2020, tmdbId: null, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: ['Drama'], ratingTmdb: 7, ratingImdb: null,
+    year: 2020, tmdbId: null, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: ['Drama'], ratingTmdb: 7, ratingImdb: null, ratingSonarr: null,
     addedAt: 1000, rootFolder: '/x', monitored: true, hasFile: true, size: 0, tags: [],
   }
   storeArrInstance(db(), 1, [
@@ -48,7 +48,7 @@ describe('date d\'ajout', () => {
     const ins = db().prepare("INSERT INTO instances (kind, name, url, api_key_enc, created_at) VALUES ('radarr', ?, 'http://x', 'k', 0)")
     ins.run('A'); ins.run('B')
     const rec = (addedAt: number): ArrItemRecord => ({
-      externalId: 1, type: 'movie', title: 'Dune', year: 2021, tmdbId: 1, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: [], ratingTmdb: null, ratingImdb: null,
+      externalId: 1, type: 'movie', title: 'Dune', year: 2021, tmdbId: 1, tvdbId: null, imdbId: null, originalLanguage: 'en', genres: [], ratingTmdb: null, ratingImdb: null, ratingSonarr: null,
       addedAt, servicePath: '/movies/Dune', rootFolder: '/movies', monitored: true, hasFile: true, size: 0, tags: [], files: [],
     })
     const y2020 = Date.UTC(2020, 0, 1)
@@ -69,7 +69,7 @@ describe('totalSizeGb', () => {
   it('additionne les octets avant d\'arrondir', () => {
     db().prepare("INSERT INTO instances (kind, name, url, api_key_enc, created_at) VALUES ('radarr', 'R', 'http://x', 'k', 0)").run()
     const rec = (n: number): ArrItemRecord => ({
-      externalId: n, type: 'movie', title: `T${n}`, year: null, tmdbId: n, tvdbId: null, imdbId: null, originalLanguage: null, genres: [], ratingTmdb: null, ratingImdb: null,
+      externalId: n, type: 'movie', title: `T${n}`, year: null, tmdbId: n, tvdbId: null, imdbId: null, originalLanguage: null, genres: [], ratingTmdb: null, ratingImdb: null, ratingSonarr: null,
       addedAt: null, servicePath: `/movies/T${n}`, rootFolder: '/movies', monitored: true, hasFile: true, size: 0.004 * GB, tags: [], files: [],
     })
     storeArrInstance(db(), 1, [rec(1), rec(2), rec(3)], [], 1)

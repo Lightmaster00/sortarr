@@ -6,7 +6,7 @@ const NOW = Date.UTC(2026, 9, 24)
 
 const row: CatalogRow = {
   id: 1, type: 'movie', title: 'Le Fabuleux Destin d’Amélie Poulain', year: 2001, originalLanguage: 'fr', genres: ['Comédie', 'Romance'],
-  ratingTmdb: 7.9, ratingImdb: 8.3, addedAt: NOW - 400 * DAY, sizeGb: 12.5, resolution: 1080, videoCodecs: ['h264'],
+  rating: 7.9, ratingTmdb: 7.9, ratingImdb: 8.3, addedAt: NOW - 400 * DAY, sizeGb: 12.5, resolution: 1080, videoCodecs: ['h264'],
   audioLanguages: ['fr'], subtitleLanguages: [], isRemux: false, instances: ['1'], servers: ['3'], libraries: ['Movies'],
   rootFolders: ['/movies'], tags: [], monitored: true, hasFile: true, neverWatched: false, lastWatchedAt: NOW - 200 * DAY, playCount: 2,
 }

@@ -31,7 +31,7 @@ export function totalSizeGb(rows: CatalogRow[]): number {
   return round2(rows.reduce((n, r) => n + (bytesOf.get(r) ?? r.sizeGb * GB), 0) / GB)
 }
 
-interface ItemRow { id: number; type: 'movie' | 'series'; title: string; year: number | null; tmdb_id: number | null; tvdb_id: number | null; imdb_id: string | null; original_language: string | null; genres: string; rating_tmdb: number | null; rating_imdb: number | null; added_at: number | null }
+interface ItemRow { id: number; type: 'movie' | 'series'; title: string; year: number | null; tmdb_id: number | null; tvdb_id: number | null; imdb_id: string | null; original_language: string | null; genres: string; rating_tmdb: number | null; rating_imdb: number | null; rating_sonarr: number | null; added_at: number | null }
 interface PresenceRow { item_id: number; instance_id: number; kind: InstanceKind; name: string; external_id: string; library: string | null; root_folder: string | null; real_folder: string | null; monitored: number | null; has_file: number | null; size: number | null; tags: string; synced_at: number; added_at: number | null }
 interface FileRow { item_id: number; instance_name: string; season: number | null; episode: number | null; real_path: string | null; size: number; resolution: number | null; video_codec: string | null; audio_languages: string; subtitle_languages: string; is_remux: number }
 interface HistoryRow { item_id: number; server_name: string; user: string; last_watched_at: number | null; play_count: number }
@@ -58,6 +58,11 @@ const unique = (values: (string | null)[]) => [...new Set(values.filter((v): v i
 function addedAtOf(it: ItemRow, presences: PresenceRow[]): number | null {
   const dates = presences.filter(p => isArrKind(p.kind) && p.added_at !== null).map(p => p.added_at as number)
   return dates.length ? Math.min(...dates) : it.added_at
+}
+
+/** Note affichée : TMDB, puis IMDb, puis celle de Sonarr (séries). */
+export function ratingOf(it: Pick<ItemRow, 'rating_tmdb' | 'rating_imdb' | 'rating_sonarr'>): number | null {
+  return it.rating_tmdb ?? it.rating_imdb ?? it.rating_sonarr ?? null
 }
 
 const PRESENCES_SQL = `SELECT p.*, i.kind, i.name FROM presences p JOIN instances i ON i.id = p.instance_id ORDER BY i.kind = 'plex', i.kind = 'jellyfin', i.name`
@@ -89,6 +94,7 @@ export function loadCatalogRows(db: Db = getDb()): CatalogRow[] {
       year: it.year,
       originalLanguage: it.original_language,
       genres: parseList(it.genres),
+      rating: ratingOf(it),
       ratingTmdb: it.rating_tmdb,
       ratingImdb: it.rating_imdb,
       addedAt: addedAtOf(it, arr),
@@ -156,7 +162,7 @@ export function getItemDetail(id: number, db: Db = getDb()): ItemDetail | null {
   return {
     item: {
       id: it.id, type: it.type, title: it.title, year: it.year, tmdbId: it.tmdb_id, tvdbId: it.tvdb_id, imdbId: it.imdb_id,
-      originalLanguage: it.original_language, genres: parseList(it.genres), ratingTmdb: it.rating_tmdb, ratingImdb: it.rating_imdb, addedAt: addedAtOf(it, presences),
+      originalLanguage: it.original_language, genres: parseList(it.genres), rating: ratingOf(it), ratingTmdb: it.rating_tmdb, ratingImdb: it.rating_imdb, addedAt: addedAtOf(it, presences),
     },
     presences: presences.map(p => ({
       instanceId: p.instance_id, instanceName: p.name, kind: p.kind, externalId: p.external_id, library: p.library, rootFolder: p.root_folder,

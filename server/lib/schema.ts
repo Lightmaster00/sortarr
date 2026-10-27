@@ -115,6 +115,32 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE instances ADD COLUMN last_sync_ok INTEGER;
   ALTER TABLE presences ADD COLUMN added_at INTEGER;
   `,
+  `
+  ALTER TABLE items ADD COLUMN rating_sonarr REAL;
+
+  CREATE TABLE rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    template TEXT NOT NULL,
+    params TEXT NOT NULL DEFAULT '{}',
+    filter TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('erreur', 'avertissement', 'info')),
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE exceptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    item_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    UNIQUE (source, item_key)
+  );
+  `,
 ]
 
 export const SCHEMA_VERSION = MIGRATIONS.length

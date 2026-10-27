@@ -27,6 +27,7 @@ export interface ArrItemRecord {
   originalLanguage: string | null
   genres: string[]
   ratingTmdb: number | null
+  ratingSonarr: number | null
   ratingImdb: number | null
   addedAt: number | null
   servicePath: string
