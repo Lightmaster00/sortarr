@@ -27,7 +27,9 @@ Puis ouvrir http://<ip-du-serveur>:3000 :
 
 1. créer le compte admin ;
 2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (type, adresse et clé API ; l'interface indique où trouver la clé). Utiliser l'adresse IP du serveur (`http://192.168.1.10:32400`), jamais `localhost`. Sortarr retrouve seul les dossiers de chaque instance sous `/media` ; si ce n'est pas possible, la carte de l'instance le signale avec un bouton « Régler les dossiers » ;
-3. cliquer sur « Synchroniser » puis ouvrir le **Catalogue**.
+3. cliquer sur « Synchroniser » ;
+4. ouvrir **À traiter** : les contrôles de base (titres sur Plex/Jellyfin sans Radarr/Sonarr, doublons, titres sans fichier…) y sont déjà ;
+5. dans **Règles**, créer les tiennes à partir d'un modèle (Rangement, Qualité minimale, Ménage, Sur mesure) : l'aperçu montre tout de suite les titres concernés. Les règles signalent seulement, elles ne suppriment rien.
 
 ### « Service injoignable »
 

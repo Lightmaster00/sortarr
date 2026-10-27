@@ -3,11 +3,14 @@ import type { ItemDetail } from '#shared/catalog'
 import { KIND_LABELS } from '#shared/instances'
 import { formatDate, formatDateTime, formatSize } from '#shared/format'
 import { languageLabel, resolutionLabel } from '#shared/media'
+import { SEVERITY_COLORS, SEVERITY_LABELS, type IssueGroupDto } from '#shared/rules'
 
 const id = defineModel<number | null>('id', { required: true })
 const api = useApi()
 const toast = useToast()
 const detail = ref<ItemDetail | null>(null)
+const issues = ref<IssueGroupDto[]>([])
+const { refresh: refreshIssues } = useIssues()
 const open = computed({
   get: () => id.value !== null,
   set: (value: boolean) => { if (!value) id.value = null },
@@ -16,9 +19,13 @@ const open = computed({
 watch(id, async (value) => {
   if (value === null) return
   detail.value = null
+  issues.value = []
   try {
-    const res = await api<ItemDetail>(`/api/catalog/items/${value}`)
-    if (id.value === value) detail.value = res
+    const [res, found] = await Promise.all([api<ItemDetail>(`/api/catalog/items/${value}`), api<IssueGroupDto[]>(`/api/issues/item/${value}`)])
+    if (id.value === value) {
+      detail.value = res
+      issues.value = found
+    }
   } catch (e) {
     if (id.value !== value) return
     toast.add({ title: 'Fiche indisponible', description: errorMessage(e), color: 'error' })
@@ -30,6 +37,18 @@ const GB = 1024 ** 3
 const langs = (codes: string[]) => (codes.length ? codes.map(languageLabel).join(', ') : '—')
 const yesNo = (v: boolean | null) => (v === null ? '—' : v ? 'oui' : 'non')
 const MAX_FILES = 100
+
+async function ignore(group: IssueGroupDto) {
+  if (id.value === null) return
+  try {
+    await api('/api/exceptions', { method: 'POST', body: { source: group.key, itemId: id.value } })
+    issues.value = issues.value.filter(g => g.key !== group.key)
+    await refreshIssues()
+    toast.add({ title: 'Signalement ignoré', description: `Ce titre n'apparaîtra plus dans « ${group.title} ».`, color: 'neutral' })
+  } catch (e) {
+    toast.add({ title: 'Impossible d\'ignorer', description: errorMessage(e), color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -48,7 +67,11 @@ const MAX_FILES = 100
               <UBadge :label="detail.item.type === 'movie' ? 'Film' : 'Série'" variant="subtle" />
               <UBadge v-for="p in detail.presences" :key="`b-${p.instanceId}`" color="neutral" variant="outline" :label="p.instanceName" />
             </div>
-            <div class="grid grid-cols-2 gap-2 max-w-sm">
+            <div class="grid grid-cols-3 gap-2 max-w-md">
+              <div class="rounded-lg bg-elevated/50 px-3 py-2">
+                <p class="text-xs text-muted">Note</p>
+                <p class="font-semibold"><RatingBadge v-if="detail.item.rating !== null" :value="detail.item.rating" /><span v-else>—</span></p>
+              </div>
               <div class="rounded-lg bg-elevated/50 px-3 py-2">
                 <p class="text-xs text-muted">Taille</p>
                 <p class="font-semibold">{{ formatSize(detail.files.reduce((n, f) => n + f.size, 0) / GB) }}</p>
@@ -62,12 +85,24 @@ const MAX_FILES = 100
           </div>
         </section>
 
+        <section v-if="issues.length">
+          <h3 class="font-semibold mb-2">Signalements</h3>
+          <ul class="space-y-1.5">
+            <li v-for="g in issues" :key="g.key" class="flex items-center gap-2 rounded-lg border border-default px-3 py-2">
+              <UIcon :name="g.icon" class="size-4 shrink-0" :class="SEVERITY_TEXT[g.severity]" />
+              <span class="flex-1 min-w-0">{{ g.title }}</span>
+              <UBadge :color="SEVERITY_COLORS[g.severity]" variant="subtle" size="sm" :label="SEVERITY_LABELS[g.severity]" />
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-eye-off" label="Ignorer" @click="ignore(g)" />
+            </li>
+          </ul>
+        </section>
+
         <section>
           <h3 class="font-semibold mb-2">Informations</h3>
           <dl class="grid grid-cols-[10rem_1fr] gap-y-1">
             <dt class="text-muted">Langue originale</dt><dd>{{ detail.item.originalLanguage ? languageLabel(detail.item.originalLanguage) : '—' }}</dd>
             <dt class="text-muted">Genres</dt><dd>{{ detail.item.genres.join(', ') || '—' }}</dd>
-            <dt class="text-muted">Notes</dt><dd>TMDB {{ detail.item.ratingTmdb ?? '—' }} · IMDb {{ detail.item.ratingImdb ?? '—' }}</dd>
+            <dt class="text-muted">Notes</dt><dd>TMDB {{ detail.item.ratingTmdb ?? '—' }} · IMDb {{ detail.item.ratingImdb ?? '—' }}<template v-if="detail.item.type === 'series'"> · Sonarr {{ detail.item.rating ?? '—' }}</template></dd>
             <dt class="text-muted">Ajouté le</dt><dd>{{ formatDate(detail.item.addedAt) }}</dd>
             <dt class="text-muted">Identifiants</dt><dd>TMDB {{ detail.item.tmdbId ?? '—' }} · TVDB {{ detail.item.tvdbId ?? '—' }} · IMDb {{ detail.item.imdbId ?? '—' }}</dd>
           </dl>

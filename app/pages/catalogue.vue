@@ -9,6 +9,7 @@ import { formatDate, formatSize } from '#shared/format'
 
 const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
+const RatingBadge = resolveComponent('RatingBadge')
 
 const api = useApi()
 const toast = useToast()
@@ -50,7 +51,7 @@ watch(mode, (value) => {
 const SORT_ITEMS: { label: string; value: SortField }[] = [
   { label: 'Titre', value: 'title' }, { label: 'Année', value: 'year' }, { label: 'Date d\'ajout', value: 'addedAt' },
   { label: 'Taille', value: 'sizeGb' }, { label: 'Résolution', value: 'resolution' }, { label: 'Dernier visionnage', value: 'lastWatchedAt' },
-  { label: 'Nombre de lectures', value: 'playCount' }, { label: 'Note TMDB', value: 'ratingTmdb' },
+  { label: 'Nombre de lectures', value: 'playCount' }, { label: 'Note', value: 'rating' },
 ]
 const sortField = computed({
   get: () => sort.value.field,
@@ -138,7 +139,7 @@ function sortHeader(label: string, field: SortField) {
 }
 
 const COLUMN_LABELS: Record<string, string> = {
-  type: 'Type', instances: 'Instances', libraries: 'Bibliothèques', sizeGb: 'Taille', resolution: 'Résolution',
+  type: 'Type', rating: 'Note', instances: 'Instances', libraries: 'Bibliothèques', sizeGb: 'Taille', resolution: 'Résolution',
   audioLanguages: 'Audio', subtitleLanguages: 'Sous-titres', originalLanguage: 'Langue originale', addedAt: 'Ajouté', lastWatchedAt: 'Dernier visionnage',
 }
 
@@ -164,6 +165,7 @@ const columns: TableColumn<CatalogRow>[] = [
       : h('span', { class: 'text-warning' }, 'aucune'),
   },
   { id: 'libraries', header: 'Bibliothèques', cell: ({ row }) => row.original.libraries.join(', ') || '—' },
+  { id: 'rating', header: sortHeader('Note', 'rating'), cell: ({ row }) => (row.original.rating === null ? '—' : h(RatingBadge, { value: row.original.rating })) },
   { id: 'sizeGb', header: sortHeader('Taille', 'sizeGb'), cell: ({ row }) => formatSize(row.original.sizeGb) },
   { id: 'resolution', header: sortHeader('Résolution', 'resolution'), cell: ({ row }) => resolutionLabel(row.original.resolution) },
   { id: 'audioLanguages', header: 'Audio', cell: ({ row }) => langs(row.original.audioLanguages) },
@@ -257,19 +259,11 @@ const columnItems = computed(() => Object.entries(COLUMN_LABELS).map(([id, label
         <div class="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-4 gap-y-5" :class="{ 'opacity-60': loading }">
           <button v-for="r in result.rows" :key="r.id" type="button" class="text-left group self-start" @click="detailId = r.id">
             <PosterImage :id="r.id" :title="r.title" :type="r.type" class="group-hover:ring-2 group-hover:ring-primary transition-shadow">
-              <div class="absolute top-1.5 left-1.5 right-1.5 flex flex-wrap gap-1">
-                <span v-if="r.resolution" class="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">{{ resolutionLabel(r.resolution) }}</span>
-                <span v-if="r.type === 'series'" class="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">Série</span>
-              </div>
-              <div v-if="r.neverWatched" class="absolute bottom-1.5 right-1.5 rounded-full bg-black/70 p-1" title="Jamais vu">
-                <UIcon name="i-lucide-eye-off" class="size-3.5 text-white" />
-              </div>
-              <div v-if="!r.instances.length || !r.servers.length" class="absolute bottom-1.5 left-1.5 rounded-full bg-warning p-1" :title="!r.instances.length ? 'Suivi par aucun Radarr/Sonarr' : 'Absent de Plex et Jellyfin'">
-                <UIcon name="i-lucide-triangle-alert" class="size-3.5 text-inverted" />
-              </div>
+              <span v-if="r.resolution" class="absolute top-1.5 left-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[11px] font-semibold text-white">{{ resolutionLabel(r.resolution) }}</span>
+              <div class="absolute top-1.5 right-1.5"><RatingBadge :value="r.rating" overlay /></div>
             </PosterImage>
             <p class="text-sm font-medium mt-1.5 line-clamp-2 leading-snug group-hover:text-primary">{{ r.title }}</p>
-            <p class="text-xs text-muted">{{ r.year ?? '—' }} · {{ formatSize(r.sizeGb) }}</p>
+            <p class="text-xs text-muted">{{ r.year ?? '—' }}{{ r.type === 'series' ? ' · série' : '' }} <template v-if="r.sizeGb"> · {{ formatSize(r.sizeGb) }}</template></p>
           </button>
         </div>
       </div>

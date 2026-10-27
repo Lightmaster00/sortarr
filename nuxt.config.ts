@@ -3,6 +3,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   modules: ['@nuxt/ui'],
   css: ['~/assets/css/main.css'],
+  // Icônes embarquées dans l'appli (y compris celles citées dans app/utils et shared) : pas d'affichage retardé.
+  icon: {
+    clientBundle: { scan: { globInclude: ['app/**/*.{vue,ts}', 'shared/**/*.ts'] }, icons: ['lucide:loader-circle', 'lucide:chevron-down', 'lucide:check', 'lucide:x'] },
+  },
   devtools: { enabled: false },
   // Application d'administration privée : rendu côté client uniquement.
   ssr: false,

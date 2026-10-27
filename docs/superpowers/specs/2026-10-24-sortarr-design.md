@@ -157,6 +157,8 @@ Validation par Zod côté serveur ; un champ inconnu rend la règle invalide (af
 
 ## 6. Règles
 
+> **Phase 2 livrée (2026-10-27)** : les trois types prévus ci-dessous sont remplacés, côté utilisateur, par des **modèles** (Rangement, Qualité minimale, Ménage, Sur mesure) qui traduisent quelques réglages simples en un filtre du catalogue. Une règle stockée = `name`, `template`, `params` (pour rouvrir l'éditeur), `filter`, `severity` (erreur | avertissement | info, affichées « Important / À vérifier / Pour info »), `enabled`. Un titre est signalé quand il correspond au filtre. Filtre vide (ou groupe vide imbriqué) refusé ; une règle qui parle de visionnage n'est évaluée qu'avec au moins un serveur synchronisé ; une instance citée par une règle ne peut pas être supprimée. Les règles signalent seulement : priorités de rangement, actions et délai de grâce restent pour les phases 3 à 5. Les exceptions (« Ignorer ») sont indexées par `item_key` et la source (`check:<contrôle>` ou `rule:<id>`). Contrôles intégrés livrés : sur un serveur sans *arr, doublon entre deux *arr du même type, téléchargé mais absent des serveurs, suivi sans fichier, présent sur un seul serveur. La note affichée est unique : TMDB, puis IMDb, puis Sonarr pour les séries.
+
 Un modèle unique. Table `rules` : `id`, `name`, `description`, `kind` (rangement | qualité | alerte), `enabled`, `scope` (filtre), `expectation` (JSON selon `kind`), `severity` (erreur | avertissement | info), `message` (modèle de texte, ex : `{titre} devrait être dans {instance_attendue}`), `priority` (rangement uniquement), `action` (JSON optionnel), `action_enabled`.
 
 ### 6.1 Types

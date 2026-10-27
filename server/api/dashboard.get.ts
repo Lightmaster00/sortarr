@@ -52,7 +52,7 @@ export default defineApiHandler((): DashboardDto => {
     recent: rows.filter(r => r.addedAt !== null && r.instances.length > 0)
       .sort((a, b) => b.addedAt! - a.addedAt!)
       .slice(0, RECENT)
-      .map(r => ({ id: r.id, title: r.title, year: r.year, type: r.type })),
+      .map(r => ({ id: r.id, title: r.title, year: r.year, type: r.type, rating: r.rating })),
     instances: listInstances(),
     sync: { ...getSyncState(), nextRunAt: nextSyncAt() },
   }

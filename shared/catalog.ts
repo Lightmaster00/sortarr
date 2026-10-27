@@ -47,7 +47,7 @@ export interface DashboardDto {
   /** Langues originales les plus présentes ; le reste est regroupé sous « other ». */
   languages: { code: string; count: number }[]
   /** Derniers titres ajoutés, pour la frise d'affiches. */
-  recent: { id: number; title: string; year: number | null; type: 'movie' | 'series' }[]
+  recent: { id: number; title: string; year: number | null; type: 'movie' | 'series'; rating: number | null }[]
   instances: InstanceDto[]
   sync: SyncStateDto
 }

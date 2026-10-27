@@ -7,10 +7,10 @@ const only = (...children: FilterGroup['children']): FilterGroup => ({ kind: 'gr
 /** Vues prêtes à l'emploi du catalogue, aussi utilisées comme liens depuis le tableau de bord. */
 export const QUICK_VIEWS: QuickView[] = [
   { key: 'tout', label: 'Tout', icon: 'i-lucide-library', hint: 'Tout le catalogue.', filter: () => only() },
+  { key: 'recents', label: 'Ajoutés ce mois-ci', icon: 'i-lucide-sparkles', hint: 'Ajoutés à Radarr/Sonarr ces 30 derniers jours.', filter: () => only({ kind: 'cond', field: 'addedAt', op: 'newer_than_days', value: 30 }) },
+  { key: 'bien-notes', label: 'Bien notés', icon: 'i-lucide-star', hint: 'Note de 7,5 ou plus.', filter: () => only({ kind: 'cond', field: 'rating', op: 'gte', value: 7.5 }) },
+  { key: 'mal-notes', label: 'Mal notés', icon: 'i-lucide-thumbs-down', hint: 'Note inférieure à 6.', filter: () => only({ kind: 'cond', field: 'rating', op: 'lt', value: 6 }) },
   { key: 'jamais-vus', label: 'Jamais vus', icon: 'i-lucide-eye-off', hint: 'Personne ne les a lancés sur Plex ou Jellyfin.', filter: () => only({ kind: 'cond', field: 'neverWatched', op: 'is_true' }) },
-  { key: 'hors-serveurs', label: 'Invisibles sur les serveurs', icon: 'i-lucide-monitor-off', hint: 'Gérés par Radarr/Sonarr mais absents de Plex et Jellyfin.', filter: () => only({ kind: 'cond', field: 'servers', op: 'empty' }, { kind: 'cond', field: 'hasFile', op: 'is_true' }) },
-  { key: 'sans-gestionnaire', label: 'Sans Radarr/Sonarr', icon: 'i-lucide-unlink', hint: 'Présents sur un serveur média mais suivis par aucun gestionnaire.', filter: () => only({ kind: 'cond', field: 'instances', op: 'empty' }) },
-  { key: 'sans-fichier', label: 'Sans fichier', icon: 'i-lucide-file-x', hint: 'Suivis par Radarr/Sonarr mais aucun fichier téléchargé.', filter: () => only({ kind: 'cond', field: 'hasFile', op: 'is_false' }, { kind: 'cond', field: 'instances', op: 'not_empty' }) },
   { key: 'basse-qualite', label: 'Qualité ≤ 720p', icon: 'i-lucide-gauge', hint: 'Au moins un fichier en 720p ou moins.', filter: () => only({ kind: 'cond', field: 'resolution', op: 'lte', value: 720 }) },
 ]
 

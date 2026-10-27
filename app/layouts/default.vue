@@ -4,10 +4,16 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const api = useApi()
 const toast = useToast()
 
-const main: NavigationMenuItem[] = [
+const { summary, refresh: refreshIssues } = useIssues()
+onMounted(refreshIssues)
+onSyncFinished(refreshIssues)
+const toFix = computed(() => (summary.value ? summary.value.bySeverity.erreur + summary.value.bySeverity.avertissement : 0))
+const main = computed<NavigationMenuItem[]>(() => [
   { label: 'Tableau de bord', icon: 'i-lucide-layout-dashboard', to: '/' },
+  { label: 'À traiter', icon: 'i-lucide-inbox', to: '/a-traiter', badge: toFix.value ? { label: toFix.value.toLocaleString('fr-FR'), color: 'warning', variant: 'subtle' } : undefined },
   { label: 'Catalogue', icon: 'i-lucide-film', to: '/catalogue' },
-]
+  { label: 'Règles', icon: 'i-lucide-list-checks', to: '/regles' },
+])
 const route = useRoute()
 const settings = computed<NavigationMenuItem[]>(() => [
   // La page des dossiers (avancée) s'ouvre depuis une instance : le menu reste sur « Instances ».
