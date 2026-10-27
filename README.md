@@ -2,8 +2,8 @@
 
 Sortarr est un outil auto-hébergé pour auditer et nettoyer une médiathèque Plex / Jellyfin au regard de vos instances Radarr et Sonarr : un catalogue unique qui rassemble les quatre services. L'interface est en français.
 
-Phase 1 (cette version) : connexion admin, gestion des instances depuis l'interface, correspondance des chemins,
-synchronisation planifiée et catalogue filtrable en lecture seule. Rien n'est modifié dans vos services.
+Cette version : gestion des instances depuis l'interface, synchronisation planifiée, catalogue en affiches avec notes et filtres,
+page « À traiter » (contrôles intégrés + tes règles) et éditeur de règles avec aperçu. Rien n'est modifié dans vos services.
 
 ## Installation sur Unraid
 
