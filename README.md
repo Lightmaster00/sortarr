@@ -26,9 +26,10 @@ docker compose up -d
 Puis ouvrir http://<ip-du-serveur>:3000 :
 
 1. créer le compte admin ;
-2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (type, adresse et clé API ; l'interface indique où trouver la clé). Utiliser l'adresse IP du serveur (`http://192.168.1.10:32400`), jamais `localhost`. Sortarr retrouve seul les dossiers de chaque instance sous `/media` ; si ce n'est pas possible, la carte de l'instance le signale avec un bouton « Régler les dossiers » ;
+2. **Réglages › Instances** : ajouter Radarr, Sonarr, Plex et Jellyfin (type, adresse et clé API ; l'interface indique où trouver la clé). Utiliser l'adresse IP du serveur (`http://192.168.1.10:32400`), jamais `localhost`. Sortarr retrouve seul les dossiers de chaque instance dans vos dossiers de médias ; si ce n'est pas possible, la carte de l'instance le signale avec un bouton « Régler les dossiers » ;
 3. cliquer sur « Synchroniser » ;
 4. ouvrir **À traiter** : les contrôles de base (titres sur Plex/Jellyfin sans Radarr/Sonarr, doublons, titres sans fichier…) y sont déjà ;
+   - des séries ou films ajoutés par un autre outil que Radarr/Sonarr (Fankarr, ajouts à la main…) ? Dans les dossiers du Plex ou du Jellyfin concerné, décocher « Suivi par Radarr/Sonarr » sur leur dossier : ils ne sont plus signalés ;
 5. dans **Règles**, créer les tiennes à partir d'un modèle (Rangement, Qualité minimale, Ménage, Sur mesure) : l'aperçu montre tout de suite les titres concernés. Les règles signalent seulement, elles ne suppriment rien.
 
 ### « Service injoignable »
@@ -47,10 +48,13 @@ Pour tester depuis le conteneur : `docker exec sortarr wget -qO- http://192.168.
 |---|---|
 | `/config` | base SQLite, fichier `secret` (clé de chiffrement des clés API) |
 | `/media` | racine de vos médias, celle qui contient vos dossiers de films et de séries (`movies/`, `series/`…) |
+| autres dossiers | facultatif : autant de dossiers de médias que vous voulez, à n'importe quel chemin du conteneur (par exemple `/mnt/disks/usb/films` → `/media/usb-films`). Sortarr les détecte au démarrage ; la liste s'affiche dans **Réglages › Général** |
 
 Gardez une sauvegarde de `/config/secret` : sans lui, les clés API enregistrées sont illisibles et doivent être ressaisies.
 
-Si `/media` est absent ou illisible, la dernière synchronisation affiche une erreur « Disque ». Les données déjà synchronisées sont conservées.
+Sur Unraid, pour ajouter un dossier : modifier le conteneur, *Add another Path, Port, Variable, Label or Device*, type *Path*.
+
+Si un dossier de médias est absent ou illisible, la dernière synchronisation affiche une erreur « Disque ». Les données déjà synchronisées sont conservées.
 
 ### Variables
 
@@ -68,7 +72,7 @@ Si `/media` est absent ou illisible, la dernière synchronisation affiche une er
 ```bash
 npm install
 npm test
-SORTARR_CONFIG_DIR=./config SORTARR_MEDIA_ROOT=/chemin/vers/medias npm run dev
+SORTARR_CONFIG_DIR=./config SORTARR_MEDIA_ROOT=/chemin/vers/films,/chemin/vers/series npm run dev
 ```
 
 `npm run typecheck` vérifie les types. Les tests n'appellent jamais vos vrais services.

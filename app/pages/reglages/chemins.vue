@@ -12,7 +12,8 @@ const instances = useState<InstanceDto[]>('instances', () => [])
 const selectedId = ref<number | undefined>(route.query.instance ? Number(route.query.instance) : undefined)
 const rows = ref<Row[]>([])
 const loaded = ref(false)
-const mediaRootDir = ref('')
+const mediaRootDirs = ref<string[]>([])
+const mediaRootLabel = computed(() => mediaRootDirs.value.join(', ') || '/media')
 const checks = ref<PathCheck[] | null>(null)
 const othersPaths = ref<OtherEntry[]>([])
 const busy = ref<'load' | 'suggest' | 'save' | 'verify' | null>(null)
@@ -21,7 +22,7 @@ const instanceItems = computed(() => instances.value.map(i => ({ label: `${i.nam
 const selected = computed(() => instances.value.find(i => i.id === selectedId.value) ?? null)
 const locked = computed(() => !selected.value || !loaded.value)
 const isArr = computed(() => (selected.value ? isArrKind(selected.value.kind) : false))
-const example = computed(() => (rows.value.find(r => r.servicePath && r.realPath) ?? { servicePath: '/movies', realPath: `${mediaRootDir.value || '/media'}/films` }))
+const example = computed(() => (rows.value.find(r => r.servicePath && r.realPath) ?? { servicePath: '/movies', realPath: `${mediaRootDirs.value[0] ?? '/media'}/films` }))
 
 function normalize(p: string) {
   return p.trim().replace(/\/+$/, '')
@@ -59,7 +60,7 @@ async function suggest() {
   if (!id) return
   busy.value = 'suggest'
   try {
-    const r = await api<{ mediaRoot: string; suggestions: PathSuggestion[] }>(`/api/instances/${id}/paths/suggest`, { method: 'POST' })
+    const r = await api<{ mediaRoots: string[]; suggestions: PathSuggestion[] }>(`/api/instances/${id}/paths/suggest`, { method: 'POST' })
     if (selectedId.value !== id) return
     for (const s of r.suggestions) {
       const row = rows.value.find(x => x.servicePath === s.servicePath)
@@ -72,7 +73,7 @@ async function suggest() {
     }
     const missing = rows.value.filter(x => !x.realPath.trim()).length
     toast.add(missing
-      ? { title: `${missing} chemin(s) sans suggestion`, description: `Complète-les à la main avec un dossier sous ${r.mediaRoot}.`, color: 'warning' }
+      ? { title: `${missing} chemin(s) sans suggestion`, description: `Complète-les à la main avec un dossier sous ${r.mediaRoots.join(', ')}.`, color: 'warning' }
       : { title: 'Suggestions ajoutées', description: 'Vérifie-les puis enregistre.', color: 'success' })
   } catch (e) {
     if (selectedId.value !== id) return
@@ -165,7 +166,7 @@ watch(selectedId, (id) => {
 onMounted(async () => {
   try {
     if (!instances.value.length) instances.value = await api<InstanceDto[]>('/api/instances')
-    mediaRootDir.value = (await api<{ mediaRoot: string }>('/api/settings/general')).mediaRoot
+    mediaRootDirs.value = (await api<{ mediaRoots: string[] }>('/api/settings/general')).mediaRoots
   } catch (e) {
     toast.add({ title: 'Chargement impossible', description: errorMessage(e), color: 'error' })
   }
@@ -219,12 +220,15 @@ onMounted(async () => {
       </div>
 
       <UCard v-if="selected">
-        <div class="grid gap-x-3 gap-y-2 items-center" :class="isArr ? 'grid-cols-[1fr_auto_1fr_auto_auto]' : 'grid-cols-[1fr_auto_1fr_auto]'">
+        <div class="grid gap-x-3 gap-y-2 items-center grid-cols-[1fr_auto_1fr_auto_auto]">
           <span class="text-xs font-medium text-muted">Dossier vu par {{ selected.name }}</span>
           <span />
-          <span class="text-xs font-medium text-muted">Dossier sur le disque (sous {{ mediaRootDir }})</span>
+          <span class="text-xs font-medium text-muted">Dossier sur le disque (sous {{ mediaRootLabel }})</span>
           <UTooltip v-if="isArr" text="Décoche pour un dossier que Radarr/Sonarr ne doit pas gérer : son contenu ne sera pas signalé comme orphelin.">
             <span class="text-xs font-medium text-muted inline-flex items-center gap-1">Géré <UIcon name="i-lucide-circle-help" class="size-3.5" /></span>
+          </UTooltip>
+          <UTooltip v-else text="Décoche pour un dossier rempli par un autre outil que Radarr/Sonarr (Fankarr, téléchargements manuels…) : ses titres ne seront pas signalés comme « sans Radarr/Sonarr ».">
+            <span class="text-xs font-medium text-muted inline-flex items-center gap-1">Suivi par Radarr/Sonarr <UIcon name="i-lucide-circle-help" class="size-3.5" /></span>
           </UTooltip>
           <span />
           <template v-for="(row, index) in rows" :key="index">
@@ -234,11 +238,11 @@ onMounted(async () => {
             </div>
             <UIcon name="i-lucide-arrow-right" class="size-4 text-muted" />
             <div>
-              <UInput v-model="row.realPath" :placeholder="`${mediaRootDir}/movies`" class="w-full font-mono" :color="row.realPath ? undefined : 'warning'" :highlight="!row.realPath" />
+              <UInput v-model="row.realPath" :placeholder="`${mediaRootDirs[0] ?? '/media'}/movies`" class="w-full font-mono" :color="row.realPath ? undefined : 'warning'" :highlight="!row.realPath" />
               <p v-if="!row.realPath" class="text-xs text-warning mt-0.5">Introuvable automatiquement : indique le dossier.</p>
               <p v-if="usedBy(row)" class="text-xs text-warning mt-0.5">Déjà utilisé par {{ usedBy(row) }}</p>
             </div>
-            <USwitch v-if="isArr" v-model="row.managed" :aria-label="`Dossier ${row.servicePath} géré`" />
+            <USwitch v-model="row.managed" :aria-label="isArr ? `Dossier ${row.servicePath} géré` : `Dossier ${row.servicePath} suivi par Radarr/Sonarr`" />
             <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" aria-label="Supprimer la ligne" @click="removeRow(index)" />
           </template>
         </div>

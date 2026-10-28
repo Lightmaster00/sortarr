@@ -1,6 +1,6 @@
 import type { PathSuggestion } from '#shared/paths'
 import { defineApiHandler, parseId } from '~~/server/lib/api'
-import { mediaRoot } from '~~/server/lib/config'
+import { mediaRoots } from '~~/server/lib/config'
 import { discover } from '~~/server/lib/discovery'
 import { AppError } from '~~/server/lib/errors'
 import { getInstanceSecret } from '~~/server/lib/instances'
@@ -23,5 +23,5 @@ export default defineApiHandler(async (event) => {
       existing: saved !== undefined,
     }
   })
-  return { mediaRoot: mediaRoot(), suggestions }
+  return { mediaRoots: mediaRoots(), suggestions }
 })

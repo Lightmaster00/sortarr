@@ -141,6 +141,12 @@ export const MIGRATIONS: readonly string[] = [
     UNIQUE (source, item_key)
   );
   `,
+  `
+  -- « Géré » ne servait jusqu'ici qu'à Radarr/Sonarr. Pour Plex/Jellyfin il veut maintenant dire
+  -- « suivi par Radarr/Sonarr » : on repart de « suivi » pour ne masquer aucun signalement.
+  UPDATE path_mappings SET managed = 1
+    WHERE instance_id IN (SELECT id FROM instances WHERE kind IN ('plex', 'jellyfin'));
+  `,
 ]
 
 export const SCHEMA_VERSION = MIGRATIONS.length

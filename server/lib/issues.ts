@@ -6,9 +6,15 @@ import { catalogVersion, loadCatalogRows, totalSizeGb } from './catalog'
 import { getDb, type Db } from './db'
 import { AppError } from './errors'
 import { listInstances } from './instances'
+import { isUnder } from './paths'
 import { listRules, rulesVersion } from './rules'
 
-interface CheckContext { kindOf: Map<string, InstanceKind>; freshServers: string[] }
+interface CheckContext {
+  kindOf: Map<string, InstanceKind>
+  freshServers: string[]
+  /** Titres rangés sur Plex/Jellyfin dans un dossier qu'un autre outil que Radarr/Sonarr remplit. */
+  elsewhere: Set<number>
+}
 
 interface Check {
   key: string
@@ -28,10 +34,10 @@ export const CHECKS: Check[] = [
   {
     key: 'orphelin-serveur',
     title: 'Sur Plex/Jellyfin, sans Radarr/Sonarr',
-    description: 'Visibles sur un serveur média, mais aucun Radarr ni Sonarr ne les gère : ils ne seront ni mis à jour ni surveillés.',
+    description: 'Visibles sur un serveur média, mais aucun Radarr ni Sonarr ne les gère : ils ne seront ni mis à jour ni surveillés. Un dossier rempli par un autre outil ? Décoche « Suivi par Radarr/Sonarr » dans les dossiers du serveur.',
     severity: 'avertissement',
     icon: 'i-lucide-unlink',
-    test: r => r.instances.length === 0 && r.servers.length > 0,
+    test: (r, ctx) => r.instances.length === 0 && r.servers.length > 0 && !ctx.elsewhere.has(r.id),
   },
   {
     key: 'doublon',
@@ -80,10 +86,31 @@ export function bumpExceptions(): void {
 interface Computed { groups: IssueGroupDto[]; rowsByKey: Map<string, CatalogRow[]> }
 let cache: { stamp: string; value: Computed } | null = null
 
-function contextOf(instances: InstanceDto[]): CheckContext {
+const SERVER_KINDS = `('plex', 'jellyfin')`
+
+/** Les titres dont un dossier sur Plex/Jellyfin est marqué « non suivi par Radarr/Sonarr ». */
+function elsewhereItems(db: Db): Set<number> {
+  const unmanaged = db.prepare(`SELECT m.instance_id AS instanceId, m.real_path AS realPath FROM path_mappings m
+    JOIN instances i ON i.id = m.instance_id WHERE m.managed = 0 AND i.kind IN ${SERVER_KINDS}`).all() as { instanceId: number; realPath: string }[]
+  const out = new Set<number>()
+  if (!unmanaged.length) return out
+  const presences = db.prepare(`SELECT p.item_id AS itemId, p.instance_id AS instanceId, p.real_folder AS folder FROM presences p
+    JOIN instances i ON i.id = p.instance_id WHERE i.kind IN ${SERVER_KINDS} AND p.real_folder IS NOT NULL`).all() as { itemId: number; instanceId: number; folder: string }[]
+  for (const p of presences) {
+    if (unmanaged.some(m => m.instanceId === p.instanceId && isUnder(p.folder, m.realPath))) out.add(p.itemId)
+  }
+  return out
+}
+
+function contextOf(instances: InstanceDto[], db: Db): CheckContext {
   const kindOf = new Map(instances.map(i => [String(i.id), i.kind]))
   const freshServers = instances.filter(i => i.enabled && !isArrKind(i.kind) && i.lastSyncAt !== null && !i.stale).map(i => String(i.id))
-  return { kindOf, freshServers }
+  return { kindOf, freshServers, elsewhere: elsewhereItems(db) }
+}
+
+function mappingsStamp(db: Db): string {
+  const sql = `SELECT group_concat(instance_id || ':' || real_path || ':' || managed, '|') AS s FROM (SELECT * FROM path_mappings ORDER BY id)`
+  return (db.prepare(sql).get() as { s: string | null }).s ?? ''
 }
 
 function excludedKeys(db: Db): Map<string, Set<string>> {
@@ -97,13 +124,13 @@ function excludedKeys(db: Db): Map<string, Set<string>> {
 
 function compute(db: Db, now: number): Computed {
   const instances = listInstances(db)
-  const stamp = `${catalogVersion()}:${rulesVersion()}:${exceptionsVersionValue}:${instances.map(i => `${i.id}${i.enabled ? 1 : 0}${i.stale ? 1 : 0}${i.lastSyncAt ?? 0}`).join(',')}`
+  const stamp = `${catalogVersion()}:${rulesVersion()}:${exceptionsVersionValue}:${instances.map(i => `${i.id}${i.enabled ? 1 : 0}${i.stale ? 1 : 0}${i.lastSyncAt ?? 0}`).join(',')}:${mappingsStamp(db)}`
   // Les règles de date (« il y a plus de N jours ») bougent avec le temps : le cache expire au bout d'une heure.
   const hour = Math.floor(now / 3_600_000)
   if (cache && cache.stamp === `${stamp}:${hour}`) return cache.value
 
   const rows = loadCatalogRows(db)
-  const ctx = contextOf(instances)
+  const ctx = contextOf(instances, db)
   const keyOf = new Map((db.prepare('SELECT id, item_key FROM items').all() as { id: number; item_key: string }[]).map(r => [r.id, r.item_key]))
   const excluded = excludedKeys(db)
   const keep = (source: string) => {

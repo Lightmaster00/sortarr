@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SEVERITY_COLORS, SEVERITY_ICONS, SEVERITY_LABELS, SEVERITIES, type ExceptionDto, type IssueGroupDto, type IssueItemsResult } from '#shared/rules'
 import { formatDate, formatSize } from '#shared/format'
+import { KIND_LABELS, isArrKind, type InstanceDto } from '#shared/instances'
 
 const api = useApi()
 const toast = useToast()
@@ -92,6 +93,17 @@ async function restore(id: number) {
 }
 
 const fr = (n: number) => n.toLocaleString('fr-FR')
+
+// Titres ajoutés par un autre outil (Fankarr…) : on règle leur dossier sur le serveur pour ne plus les signaler.
+const instances = useState<InstanceDto[]>('instances', () => [])
+const serverFolderLinks = computed(() => instances.value.filter(i => !isArrKind(i.kind)).map(i => ({
+  label: `Dossiers de ${i.name} (${KIND_LABELS[i.kind]})`, icon: 'i-lucide-folder-tree', to: `/reglages/chemins?instance=${i.id}`,
+})))
+onMounted(async () => {
+  if (!instances.value.length) {
+    try { instances.value = await api<InstanceDto[]>('/api/instances') } catch { /* le lien reste simplement absent */ }
+  }
+})
 </script>
 
 <template>
@@ -151,6 +163,9 @@ const fr = (n: number) => n.toLocaleString('fr-FR')
               <h2 class="text-lg font-semibold">{{ selected.title }}</h2>
               <UBadge :color="SEVERITY_COLORS[selected.severity]" variant="subtle" :icon="SEVERITY_ICONS[selected.severity]" :label="SEVERITY_LABELS[selected.severity]" />
               <UButton v-if="selected.ruleId" class="ml-auto" size="xs" color="neutral" variant="outline" icon="i-lucide-pencil" label="Modifier la règle" :to="`/regles/${selected.ruleId}`" />
+              <UDropdownMenu v-if="selected.key === 'check:orphelin-serveur' && serverFolderLinks.length" :items="serverFolderLinks" :content="{ align: 'end' }">
+                <UButton class="ml-auto" size="xs" color="neutral" variant="outline" icon="i-lucide-folder-x" label="Géré par un autre outil ?" trailing-icon="i-lucide-chevron-down" />
+              </UDropdownMenu>
             </div>
             <p v-if="selected.description" class="text-sm text-muted">{{ selected.description }}</p>
             <UAlert v-if="selected.unavailable" color="neutral" variant="subtle" icon="i-lucide-hourglass" :description="selected.unavailable" />

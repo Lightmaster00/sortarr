@@ -2,7 +2,7 @@
 import { passwordChangeSchema } from '#shared/auth'
 import { formatDateTime } from '#shared/format'
 
-interface General { mediaRoot: string; configDir: string; syncCron: string; nextSyncAt: number | null }
+interface General { mediaRoots: string[]; configDir: string; syncCron: string; nextSyncAt: number | null }
 
 const api = useApi()
 const toast = useToast()
@@ -101,6 +101,18 @@ async function changePassword() {
         </div>
       </UCard>
 
+      <UCard v-if="general">
+        <template #header>
+          <h2 class="font-medium">Dossiers de médias</h2>
+          <p class="text-sm text-muted mt-0.5">Les dossiers du NAS que Sortarr voit. Pour en ajouter un sur Unraid : modifie le conteneur, « Add another Path, Port, Variable, Label or Device », type « Path », puis un chemin dans le conteneur au choix (par exemple <code>/media/films-4k</code>). Il apparaît ici au redémarrage.</p>
+        </template>
+        <ul class="space-y-1.5">
+          <li v-for="root in general.mediaRoots" :key="root" class="flex items-center gap-2 text-sm">
+            <UIcon name="i-lucide-hard-drive" class="size-4 text-muted shrink-0" /><code class="break-all">{{ root }}</code>
+          </li>
+        </ul>
+      </UCard>
+
       <UCard>
         <template #header>
           <h2 class="font-medium">Mot de passe</h2>
@@ -118,7 +130,6 @@ async function changePassword() {
         <UButton label="Informations techniques" icon="i-lucide-info" color="neutral" variant="ghost" size="sm" trailing-icon="i-lucide-chevron-down" />
         <template #content>
           <dl class="grid grid-cols-1 sm:grid-cols-[14rem_1fr] gap-y-1 text-sm px-3 pt-2">
-            <dt class="text-muted">Dossier des médias (volume /media)</dt><dd><code class="break-all">{{ general.mediaRoot }}</code></dd>
             <dt class="text-muted">Dossier de configuration</dt><dd><code class="break-all">{{ general.configDir }}</code></dd>
           </dl>
         </template>

@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { autoConfigurePaths, isUnder, listMappings, normalizeDir, replaceMappings, suggestRealPath, toRealWith, toServiceWith, tryReal, verifyInstancePaths } from '../../server/lib/paths'
+import { autoConfigurePaths, assertUnderMediaRoot, isUnder, listMappings, normalizeDir, replaceMappings, suggestRealPath, toRealWith, toServiceWith, tryReal, verifyInstancePaths } from '../../server/lib/paths'
 import { createInstance, getInstance } from '../../server/lib/instances'
-import { mediaRoot } from '../../server/lib/config'
+import { mediaMountsFrom, mediaRoots } from '../../server/lib/config'
 import { useTestDb } from '../helpers/db'
+
+const mediaRoot = () => mediaRoots()[0]!
 
 useTestDb()
 
@@ -65,19 +67,54 @@ describe('suggestRealPath', () => {
   fs.mkdirSync(path.join(root, 'films', 'movies-4k'), { recursive: true })
 
   it('trouve un dossier de même nom directement sous la racine', () => {
-    expect(suggestRealPath('/movies', root)).toBe(`${root}/movies`)
+    expect(suggestRealPath('/movies', [root])).toBe(`${root}/movies`)
   })
 
   it('cherche aussi un niveau plus bas', () => {
-    expect(suggestRealPath('/data/movies-4k', root)).toBe(`${root}/films/movies-4k`)
+    expect(suggestRealPath('/data/movies-4k', [root])).toBe(`${root}/films/movies-4k`)
   })
 
   it('garde un chemin qui existe déjà sous la racine', () => {
-    expect(suggestRealPath(`${root}/movies`, root)).toBe(`${root}/movies`)
+    expect(suggestRealPath(`${root}/movies`, [root])).toBe(`${root}/movies`)
   })
 
   it('renvoie null sans correspondance', () => {
-    expect(suggestRealPath('/data/tvshows', root)).toBeNull()
+    expect(suggestRealPath('/data/tvshows', [root])).toBeNull()
+  })
+})
+
+describe('plusieurs dossiers de médias', () => {
+  const a = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-a-'))
+  const b = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-b-'))
+  fs.mkdirSync(path.join(b, 'series', 'tv'), { recursive: true })
+  fs.mkdirSync(path.join(a, 'media', 'movies'), { recursive: true })
+  fs.mkdirSync(path.join(b, 'movies'), { recursive: true })
+
+  it('cherche dans chaque dossier, la fin de chemin la plus longue d\'abord', () => {
+    expect(suggestRealPath('/data/tv', [a, b])).toBe(`${b}/series/tv`)
+    expect(suggestRealPath('/data/media/movies', [a, b])).toBe(`${a}/media/movies`)
+  })
+
+  it('reconnaît un dossier monté sous le nom du dossier du service', () => {
+    const films = fs.mkdtempSync(path.join(os.tmpdir(), 'films-'))
+    expect(suggestRealPath(`/data/${path.basename(films)}`, [films])).toBe(films)
+  })
+
+  it('accepte un chemin réel sous n\'importe lequel des dossiers', () => {
+    expect(() => assertUnderMediaRoot(`${b}/movies`, [a, b])).not.toThrow()
+    expect(() => assertUnderMediaRoot('/etc', [a, b])).toThrow(a)
+  })
+
+  it('lit les montages Docker en écartant le système et /config', () => {
+    const info = [
+      '1 0 0:1 / / rw - overlay overlay rw',
+      '2 1 0:2 / /proc rw - proc proc rw',
+      '3 1 8:1 /appdata/sortarr /config rw - xfs /dev/sdb1 rw',
+      '4 1 0:40 /user/media /media rw - fuse.shfs shfs rw',
+      '5 1 0:41 /disks/usb /mnt/usb\\040films rw - xfs /dev/sdc1 rw',
+      '6 1 8:1 /etc/hosts /etc/hosts rw - xfs /dev/sdb1 rw',
+    ].join('\n')
+    expect(mediaMountsFrom(info, ['/config'])).toEqual(['/media', '/mnt/usb films'])
   })
 })
 

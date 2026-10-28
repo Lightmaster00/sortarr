@@ -43,7 +43,7 @@ async function onSaved(instance: InstanceDto, created: boolean) {
   }
   toast.add(saved.pathCount > 0
     ? { title: `${saved.name} ajoutée`, description: 'Ses dossiers ont été retrouvés automatiquement. Lance une synchro pour remplir le catalogue.', color: 'success', icon: 'i-lucide-circle-check' }
-    : { title: `${saved.name} ajoutée`, description: 'Ses dossiers n\'ont pas été retrouvés sous /media : vérifie le volume monté, ou règle-les à la main.', color: 'warning', actions: [{ label: 'Régler les dossiers', to: `/reglages/chemins?instance=${saved.id}` }] })
+    : { title: `${saved.name} ajoutée`, description: 'Ses dossiers n\'ont pas été retrouvés dans les dossiers de médias : vérifie les volumes montés, ou règle-les à la main.', color: 'warning', actions: [{ label: 'Régler les dossiers', to: `/reglages/chemins?instance=${saved.id}` }] })
 }
 
 const testingId = ref<number | null>(null)

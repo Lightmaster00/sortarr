@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import path from 'node:path'
-import { configDir, mediaRoot } from '../../server/lib/config'
+import { configDir, mediaRoots } from '../../server/lib/config'
 
 const saved = { config: process.env.SORTARR_CONFIG_DIR, media: process.env.SORTARR_MEDIA_ROOT }
 
@@ -22,8 +22,13 @@ describe('config', () => {
 
   it('utilise /media par défaut et ignore les espaces', () => {
     delete process.env.SORTARR_MEDIA_ROOT
-    expect(mediaRoot()).toBe('/media')
+    expect(mediaRoots()).toEqual(['/media'])
     process.env.SORTARR_MEDIA_ROOT = '  /mnt/media  '
-    expect(mediaRoot()).toBe('/mnt/media')
+    expect(mediaRoots()).toEqual(['/mnt/media'])
+  })
+
+  it('accepte plusieurs dossiers séparés par des virgules', () => {
+    process.env.SORTARR_MEDIA_ROOT = '/mnt/films, /mnt/series,/mnt/films'
+    expect(mediaRoots()).toEqual(['/mnt/films', '/mnt/series'])
   })
 })

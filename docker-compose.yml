@@ -14,6 +14,8 @@ services:
       - ./config:/config
       # La racine médias du NAS, celle qui contient vos dossiers de films et de séries
       - /mnt/user/media:/media
+      # D'autres dossiers ? Ajoutez-en autant que nécessaire, Sortarr les trouve seul :
+      # - /mnt/disks/usb/films:/media/usb-films
     environment:
       - PUID=99
       - PGID=100

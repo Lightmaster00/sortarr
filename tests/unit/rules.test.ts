@@ -51,6 +51,21 @@ describe('contrôles intégrés', () => {
     expect(issueItems({ key: 'check:orphelin-serveur', page: 1, pageSize: 10 }).rows.map(r => r.title)).toEqual(['Orphan'])
   })
 
+  it('ignorent les orphelins rangés dans un dossier non suivi par Radarr/Sonarr', () => {
+    seed()
+    const mappings = [{ id: 1, instanceId: 3, servicePath: '/fankarr', realPath: '/media/fankarr', managed: false }]
+    storeServerInstance(db(), 3, [
+      { externalId: 'p2', type: 'series', title: 'Fan', year: 2001, tmdbId: 9, tvdbId: null, imdbId: null, servicePaths: ['/fankarr/Fan'], library: 'Fan' },
+      { externalId: 'p3', type: 'movie', title: 'Autre', year: 2001, tmdbId: 8, tvdbId: null, imdbId: null, servicePaths: [], library: 'Movies' },
+    ], [], mappings, 7)
+    db().prepare("INSERT INTO path_mappings (instance_id, service_path, real_path, managed) VALUES (3, '/fankarr', '/media/fankarr', 0)").run()
+    invalidateCatalog()
+    expect(issueItems({ key: 'check:orphelin-serveur', page: 1, pageSize: 10 }).rows.map(r => r.title)).toEqual(['Autre'])
+    // Revenir à « suivi » les signale de nouveau, sans attendre une synchro.
+    db().prepare('UPDATE path_mappings SET managed = 1').run()
+    expect(count('check:orphelin-serveur')?.count).toBe(2)
+  })
+
   it('ne contrôlent pas l\'absence des serveurs sans serveur synchronisé', () => {
     seed()
     setInstanceStatus(3, { status: 'perime', syncOk: false })

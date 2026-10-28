@@ -18,7 +18,8 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
     SORTARR_CONFIG_DIR=/config \
-    SORTARR_MEDIA_ROOT=/media
+    SORTARR_MEDIA_ROOT=/media \
+    SORTARR_DETECT_MOUNTS=true
 
 EXPOSE 3000
 VOLUME ["/config"]

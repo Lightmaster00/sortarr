@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { MappingInput, PathCheck, PathMapping } from '#shared/paths'
 import { arrRootFolders, radarrMovies, sonarrSeries } from '../connectors/arr'
-import { mediaRoot } from './config'
+import { mediaRoots } from './config'
 import { getDb, type Db } from './db'
 import { discover } from './discovery'
 import { AppError } from './errors'
@@ -60,9 +60,10 @@ export function listMappings(instanceId: number, db: Db = getDb()): PathMapping[
     .map(r => ({ id: r.id, instanceId: r.instance_id, servicePath: r.service_path, realPath: r.real_path, managed: r.managed === 1 }))
 }
 
-export function assertUnderMediaRoot(realPath: string): void {
-  const root = normalizeDir(mediaRoot())
-  if (!isUnder(realPath, root)) throw new PathMappingError(`Le chemin réel ${realPath} doit être sous ${root}.`)
+export function assertUnderMediaRoot(realPath: string, roots: string[] = mediaRoots()): void {
+  if (!roots.some(root => isUnder(realPath, root))) {
+    throw new PathMappingError(`Le chemin réel ${realPath} doit être sous un dossier de médias monté (${roots.map(normalizeDir).join(', ')}).`)
+  }
 }
 
 export function replaceMappings(instanceId: number, rows: MappingInput[], db: Db = getDb()): PathMapping[] {
@@ -103,20 +104,30 @@ function subDirs(dir: string): string[] {
   }
 }
 
-/** Propose le dossier de /media qui correspond à un chemin vu par un service. */
-export function suggestRealPath(servicePath: string, root: string = mediaRoot()): string | null {
+/**
+ * Propose le dossier monté qui correspond à un chemin vu par un service. Essaie, dans
+ * chaque dossier de médias et un niveau plus bas, la fin du chemin la plus longue d'abord
+ * (/data/media/movies → media/movies, puis movies).
+ */
+export function suggestRealPath(servicePath: string, roots: string[] = mediaRoots()): string | null {
   const sp = normalizeDir(servicePath)
-  const base = normalizeDir(root)
-  if (isUnder(sp, base) && isDir(sp)) return sp
-  const name = posix.basename(sp)
-  if (!name) return null
-  const direct = posix.join(base, name)
-  if (isDir(direct)) return direct
-  for (const child of subDirs(base)) {
-    const candidate = posix.join(base, child, name)
-    if (isDir(candidate)) return candidate
+  const bases = roots.map(normalizeDir)
+  if (bases.some(base => isUnder(sp, base)) && isDir(sp)) return sp
+  const parts = sp.split('/').filter(Boolean)
+  for (let i = 0; i < parts.length; i++) {
+    const suffix = parts.slice(i).join('/')
+    for (const base of bases) {
+      const direct = posix.join(base, suffix)
+      if (isDir(direct)) return direct
+      for (const child of subDirs(base)) {
+        const candidate = posix.join(base, child, suffix)
+        if (isDir(candidate)) return candidate
+      }
+    }
   }
-  return null
+  // Un dossier monté directement sous le nom du dossier du service (/mnt/user/films → /movies).
+  const name = parts.at(-1)
+  return bases.find(base => posix.basename(base) === name && isDir(base)) ?? null
 }
 
 export interface VerifyDeps {
@@ -140,7 +151,7 @@ function liveDeps(instanceId: number): VerifyDeps {
   }
 }
 
-/** Vérifie que les dossiers racines (ou bibliothèques) et quelques titres existent sous /media. */
+/** Vérifie que les dossiers racines (ou bibliothèques) et quelques titres existent dans les dossiers de médias. */
 export async function verifyInstancePaths(instanceId: number, deps: VerifyDeps = liveDeps(instanceId)): Promise<{ ok: boolean; checks: PathCheck[] }> {
   const mappings = listMappings(instanceId)
   const paths = [...(await deps.roots()), ...(await deps.samples())]
@@ -155,11 +166,11 @@ export async function verifyInstancePaths(instanceId: number, deps: VerifyDeps =
 
 /**
  * Sans correspondance enregistrée, détecte et enregistre celles qu'on peut trouver seul
- * (dossiers racines ou bibliothèques retrouvés sous /media). Ne touche jamais à un réglage existant.
+ * (dossiers racines ou bibliothèques retrouvés dans les dossiers de médias). Ne touche jamais à un réglage existant.
  */
 export async function autoConfigurePaths(
   instanceId: number,
-  opts: { roots?: () => Promise<string[]>; root?: string; db?: Db } = {},
+  opts: { roots?: () => Promise<string[]>; mediaRoots?: string[]; db?: Db } = {},
 ): Promise<{ found: number; missing: number }> {
   const db = opts.db ?? getDb()
   if (listMappings(instanceId, db).length) return { found: 0, missing: 0 }
@@ -169,7 +180,7 @@ export async function autoConfigurePaths(
   })
   const unique = [...new Set((await roots()).map(normalizeDir))]
   const found = unique.flatMap((servicePath) => {
-    const realPath = suggestRealPath(servicePath, opts.root)
+    const realPath = suggestRealPath(servicePath, opts.mediaRoots)
     return realPath ? [{ servicePath, realPath, managed: true }] : []
   })
   // Relu juste avant d'écrire : un réglage manuel fait entre-temps l'emporte.
